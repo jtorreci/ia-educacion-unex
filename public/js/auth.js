@@ -3,13 +3,6 @@
 // Enviar enlace de inicio de sesión
 async function enviarEnlaceLogin(email) {
     try {
-        // Verificar que el usuario existe en el sistema
-        const userDoc = await db.collection('usuarios').doc(email.toLowerCase()).get();
-
-        if (!userDoc.exists) {
-            throw new Error('Este email no está registrado en el sistema. Contacta con tu profesor.');
-        }
-
         // Guardar email en localStorage para recuperarlo después
         window.localStorage.setItem('emailParaLogin', email);
 
@@ -57,7 +50,9 @@ async function completarLogin() {
                         window.location.href = '/';
                 }
             } else {
-                throw new Error('Usuario no encontrado');
+                // Usuario autenticado pero no registrado en el sistema
+                await auth.signOut();
+                throw new Error('Este email no está registrado en el sistema. Contacta con tu profesor.');
             }
 
             return result.user;
