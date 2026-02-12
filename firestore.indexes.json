@@ -1,0 +1,30 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "respuestas_pre",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "asignaturaId", "order": "ASCENDING" },
+        { "fieldPath": "fecha", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "respuestas_reto",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "asignaturaId", "order": "ASCENDING" },
+        { "fieldPath": "numeroReto", "order": "ASCENDING" },
+        { "fieldPath": "fecha", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "rubricas",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "asignaturaId", "order": "ASCENDING" },
+        { "fieldPath": "numeroReto", "order": "ASCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

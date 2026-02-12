@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Acceder - IA y Aprendizaje</title>
+    <link rel="stylesheet" href="../css/styles.css">
+</head>
+<body>
+    <!-- Navegación -->
+    <nav class="navbar">
+        <div class="container">
+            <div class="navbar-content">
+                <a href="/" class="navbar-brand">
+                    <span class="navbar-logo">🎓</span>
+                    <span>IA y Aprendizaje</span>
+                </a>
+                <ul class="navbar-menu">
+                    <li><a href="/">Inicio</a></li>
+                    <li><a href="../proyecto.html">El Proyecto</a></li>
+                    <li><a href="../recursos.html">Recursos</a></li>
+                    <li><a href="../participar.html">Participar</a></li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Login -->
+    <div class="login-container">
+        <div class="login-box">
+            <h1>🎓 Acceder</h1>
+            <p class="subtitle">Introduce tu email institucional para recibir un enlace de acceso</p>
+
+            <div id="mensaje"></div>
+
+            <form id="login-form">
+                <div class="form-group">
+                    <label for="email">Email institucional</label>
+                    <input type="email" id="email" class="form-control" placeholder="tu.email@unex.es" required>
+                </div>
+                <button type="submit" id="submit-btn" class="btn btn-primary btn-block">
+                    Enviar enlace de acceso
+                </button>
+            </form>
+
+            <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid var(--gris-claro);">
+                <p style="color: var(--gris-oscuro); font-size: 0.9rem;">
+                    <strong>¿Cómo funciona?</strong><br>
+                    1. Introduce tu email @unex.es<br>
+                    2. Recibirás un enlace en tu correo<br>
+                    3. Haz clic en el enlace para acceder<br>
+                    <em>Sin contraseñas que recordar</em>
+                </p>
+            </div>
+
+            <div style="margin-top: 20px;">
+                <p style="color: var(--gris-oscuro); font-size: 0.85rem;">
+                    ¿No puedes acceder? <a href="../participar.html">Contacta con el equipo</a>
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <script src="../js/firebase-config.js"></script>
+    <script src="../js/auth.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', initLoginPage);
+    </script>
+</body>
+</html>
