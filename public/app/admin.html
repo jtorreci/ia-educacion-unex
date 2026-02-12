@@ -4,74 +4,91 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Panel Admin - IA y Aprendizaje</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="../css/styles.css">
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎓</text></svg>">
     <style>
         .admin-layout {
             display: grid;
-            grid-template-columns: 250px 1fr;
-            gap: 30px;
+            grid-template-columns: 240px 1fr;
+            gap: 24px;
             margin-top: 20px;
         }
 
         .admin-sidebar {
             background: white;
-            border-radius: 12px;
-            padding: 20px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            border-radius: var(--radio-grande);
+            padding: 16px;
+            box-shadow: var(--sombra-suave);
             height: fit-content;
+            border: 1px solid rgba(0,0,0,0.04);
         }
 
         .admin-nav-item {
             display: block;
-            padding: 12px 15px;
+            padding: 11px 14px;
             border-radius: 8px;
-            color: var(--gris-texto);
+            color: var(--gris-oscuro);
             text-decoration: none;
-            margin-bottom: 5px;
+            margin-bottom: 4px;
             cursor: pointer;
-            transition: all 0.2s;
+            transition: var(--transicion);
+            font-size: 0.925rem;
+            font-weight: 500;
         }
 
         .admin-nav-item:hover {
             background: var(--gris-fondo);
+            color: var(--azul-primario);
         }
 
         .admin-nav-item.active {
             background: var(--verde-primario);
             color: white;
+            font-weight: 600;
         }
 
         .admin-content {
             background: white;
-            border-radius: 12px;
-            padding: 30px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            border-radius: var(--radio-grande);
+            padding: 32px;
+            box-shadow: var(--sombra-suave);
+            border: 1px solid rgba(0,0,0,0.04);
         }
 
         .stats-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 20px;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 16px;
             margin-bottom: 30px;
         }
 
         .stat-card {
             background: var(--gris-fondo);
-            padding: 20px;
-            border-radius: 10px;
+            padding: 20px 16px;
+            border-radius: var(--radio-borde);
             text-align: center;
+            transition: var(--transicion);
+        }
+
+        .stat-card:hover {
+            background: var(--verde-suave);
         }
 
         .stat-card .number {
-            font-size: 2.5rem;
-            font-weight: bold;
+            font-size: 2.2rem;
+            font-weight: 800;
             color: var(--verde-primario);
+            letter-spacing: -0.03em;
         }
 
         .stat-card .label {
             color: var(--gris-oscuro);
-            font-size: 0.9rem;
+            font-size: 0.85rem;
+            font-weight: 500;
+            margin-top: 2px;
         }
 
         .data-table {
@@ -80,7 +97,7 @@
         }
 
         .data-table th, .data-table td {
-            padding: 12px;
+            padding: 12px 14px;
             text-align: left;
             border-bottom: 1px solid var(--gris-claro);
         }
@@ -88,35 +105,53 @@
         .data-table th {
             background: var(--gris-fondo);
             font-weight: 600;
+            font-size: 0.875rem;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            color: var(--gris-oscuro);
+        }
+
+        .data-table tr:hover td {
+            background: var(--gris-fondo);
         }
 
         .badge {
             padding: 4px 10px;
             border-radius: 12px;
             font-size: 0.8rem;
-            font-weight: 500;
+            font-weight: 600;
         }
 
-        .badge-pre { background: #e3f2fd; color: #1565c0; }
-        .badge-post { background: #f3e5f5; color: #7b1fa2; }
-        .badge-reto { background: #fff3e0; color: #e65100; }
+        .badge-pre { background: #EBF8FF; color: #2B6CB0; }
+        .badge-post { background: #FAF5FF; color: #6B46C1; }
+        .badge-reto { background: #FFFAF0; color: #C05621; }
 
         .export-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
+            gap: 16px;
         }
 
         .export-card {
             background: var(--gris-fondo);
-            padding: 20px;
-            border-radius: 10px;
+            padding: 24px 20px;
+            border-radius: var(--radio-borde);
             text-align: center;
+            transition: var(--transicion);
+            border: 1px solid transparent;
+        }
+
+        .export-card:hover {
+            border-color: var(--verde-primario);
+            background: var(--verde-suave);
         }
 
         @media (max-width: 768px) {
             .admin-layout {
                 grid-template-columns: 1fr;
+            }
+            .admin-content {
+                padding: 22px;
             }
         }
     </style>

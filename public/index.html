@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>IA y Aprendizaje - Proyecto de Innovación Docente</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/styles.css">
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎓</text></svg>">
 </head>
@@ -160,19 +163,19 @@
             <div class="section-title">
                 <h2>Universidades Participantes</h2>
             </div>
-            <div style="text-align: center;">
-                <div style="display: inline-flex; align-items: center; gap: 40px; flex-wrap: wrap; justify-content: center;">
-                    <div style="text-align: center;">
-                        <div style="font-size: 3rem;">🏛️</div>
-                        <p style="font-weight: 600; color: var(--azul-primario);">Universidad de Extremadura</p>
-                        <p style="color: var(--gris-oscuro); font-size: 0.9rem;">Escuela Politécnica</p>
-                    </div>
-                    <a href="participar.html" style="text-align: center; text-decoration: none;">
-                        <div style="font-size: 3rem; opacity: 0.5;">➕</div>
-                        <p style="font-weight: 600; color: var(--verde-primario);">¿Tu universidad?</p>
-                        <p style="color: var(--gris-oscuro); font-size: 0.9rem;">Únete al proyecto</p>
-                    </a>
+            <div class="cards-grid" style="max-width: 600px; margin: 0 auto; grid-template-columns: 1fr 1fr;">
+                <div class="card" style="text-align: center; border-top: 3px solid var(--azul-primario);">
+                    <div style="font-size: 2.8rem; margin-bottom: 12px;">🏛️</div>
+                    <h3>Universidad de Extremadura</h3>
+                    <p>Escuela Politécnica</p>
                 </div>
+                <a href="participar.html" class="card-link">
+                    <div class="card" style="text-align: center; border-top: 3px solid var(--verde-primario);">
+                        <div style="font-size: 2.8rem; margin-bottom: 12px; opacity: 0.6;">➕</div>
+                        <h3 style="color: var(--verde-primario);">¿Tu universidad?</h3>
+                        <p>Únete al proyecto</p>
+                    </div>
+                </a>
             </div>
         </div>
     </section>
