@@ -78,12 +78,15 @@ function renderAsignaturaCard(asig, numEstudiantes) {
                 </span>
             </div>
 
-            <div style="display: flex; gap: 10px; margin-top: 20px;">
+            <div style="display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap;">
                 <button onclick="gestionarEstudiantes('${asig.id}')" class="btn btn-sm btn-secondary">
                     👥 Gestionar estudiantes
                 </button>
                 <button onclick="evaluarAsignatura('${asig.id}')" class="btn btn-sm btn-primary">
                     ✅ Evaluar con rúbrica
+                </button>
+                <button onclick="verProgresoAsignatura('${asig.id}')" class="btn btn-sm btn-outline">
+                    📊 Ver progreso
                 </button>
             </div>
         </div>
@@ -175,6 +178,7 @@ async function gestionarEstudiantes(asignaturaId) {
                             <div>
                                 <strong>${e.nombre || e.email}</strong>
                                 <span style="color: var(--gris-oscuro); font-size: 0.85rem;"> - ${e.email}</span>
+                                <span style="background: ${e.grupo === 'A' ? '#e3f2fd' : '#f3e5f5'}; color: ${e.grupo === 'A' ? '#1565c0' : '#7b1fa2'}; padding: 2px 8px; border-radius: 10px; font-size: 0.75rem; margin-left: 8px;">Grupo ${e.grupo || '?'}</span>
                             </div>
                             <button onclick="eliminarEstudiante('${asignaturaId}', '${e.email}')" class="btn btn-sm" style="background: var(--rojo-error); color: white;">Eliminar</button>
                         </div>
@@ -202,26 +206,39 @@ async function agregarEstudiantes(event, asignaturaId) {
     const emails = event.target.emails.value.split('\n').map(e => e.trim().toLowerCase()).filter(e => e);
 
     try {
+        // Contar grupos existentes para equilibrar
+        const existingSnap = await db.collection('asignaturas').doc(asignaturaId).collection('estudiantes').get();
+        let grupoACount = 0;
+        let grupoBCount = 0;
+        existingSnap.docs.forEach(doc => {
+            const data = doc.data();
+            if (data.grupo === 'A') grupoACount++;
+            else if (data.grupo === 'B') grupoBCount++;
+        });
+
         for (const email of emails) {
-            // Generar código anónimo
+            // Asignar grupo alternando para mantener equilibrio
+            const grupo = grupoACount <= grupoBCount ? 'A' : 'B';
+            if (grupo === 'A') grupoACount++;
+            else grupoBCount++;
+
             const codigoAnonimo = await generarCodigoAnonimo(email, asignaturaId);
 
-            // Crear usuario si no existe
             await db.collection('usuarios').doc(email).set({
                 email,
                 rol: 'estudiante',
                 fechaRegistro: firebase.firestore.FieldValue.serverTimestamp()
             }, { merge: true });
 
-            // Inscribir en asignatura
             await db.collection('asignaturas').doc(asignaturaId).collection('estudiantes').doc(email).set({
                 nombre: email.split('@')[0],
                 codigoAnonimo,
+                grupo,
                 fechaInscripcion: firebase.firestore.FieldValue.serverTimestamp()
             });
         }
 
-        mostrarMensaje(`${emails.length} estudiantes añadidos`, 'success');
+        mostrarMensaje(`${emails.length} estudiantes añadidos (Grupo A: ${grupoACount}, Grupo B: ${grupoBCount})`, 'success');
         gestionarEstudiantes(asignaturaId);
 
     } catch (error) {
@@ -352,6 +369,91 @@ async function guardarRubrica(event, asignaturaId) {
     } catch (error) {
         mostrarMensaje('Error: ' + error.message, 'error');
     }
+}
+
+// Ver progreso de cuestionarios por asignatura
+async function verProgresoAsignatura(asignaturaId) {
+    const asig = asignaturas.find(a => a.id === asignaturaId);
+    const container = document.getElementById('asignaturas-container');
+
+    const estudiantesSnap = await db.collection('asignaturas').doc(asignaturaId).collection('estudiantes').get();
+    const estudiantes = estudiantesSnap.docs.map(doc => ({ email: doc.id, ...doc.data() }));
+
+    const totalPre = estudiantes.filter(e => e.completado_pre).length;
+    const totalReto1 = estudiantes.filter(e => e.completado_reto1).length;
+    const totalReto2 = estudiantes.filter(e => e.completado_reto2).length;
+    const totalPost = estudiantes.filter(e => e.completado_post).length;
+    const total = estudiantes.length;
+    const pct = (n) => total ? Math.round((n / total) * 100) : 0;
+
+    container.innerHTML = `
+        <div class="form-card">
+            <h2>Progreso - ${asig.nombre}</h2>
+
+            <div class="stats-grid" style="margin: 25px 0;">
+                <div class="stat-card">
+                    <div class="stat-number">${totalPre}/${total}</div>
+                    <div class="stat-label">Cuestionario PRE</div>
+                    <div style="background: var(--gris-claro); border-radius: 10px; height: 6px; margin-top: 8px;">
+                        <div style="background: var(--verde-primario); width: ${pct(totalPre)}%; height: 100%; border-radius: 10px;"></div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">${totalReto1}/${total}</div>
+                    <div class="stat-label">Encuesta Reto 1</div>
+                    <div style="background: var(--gris-claro); border-radius: 10px; height: 6px; margin-top: 8px;">
+                        <div style="background: var(--verde-primario); width: ${pct(totalReto1)}%; height: 100%; border-radius: 10px;"></div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">${totalReto2}/${total}</div>
+                    <div class="stat-label">Encuesta Reto 2</div>
+                    <div style="background: var(--gris-claro); border-radius: 10px; height: 6px; margin-top: 8px;">
+                        <div style="background: var(--verde-primario); width: ${pct(totalReto2)}%; height: 100%; border-radius: 10px;"></div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">${totalPost}/${total}</div>
+                    <div class="stat-label">Cuestionario POST</div>
+                    <div style="background: var(--gris-claro); border-radius: 10px; height: 6px; margin-top: 8px;">
+                        <div style="background: var(--verde-primario); width: ${pct(totalPost)}%; height: 100%; border-radius: 10px;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <h3>Detalle por estudiante</h3>
+            <div class="table-container">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Estudiante</th>
+                            <th>Grupo</th>
+                            <th>PRE</th>
+                            <th>Reto 1</th>
+                            <th>Reto 2</th>
+                            <th>POST</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${estudiantes.map(e => `
+                            <tr>
+                                <td>${e.nombre || e.email}</td>
+                                <td><span style="background: ${e.grupo === 'A' ? '#e3f2fd' : '#f3e5f5'}; color: ${e.grupo === 'A' ? '#1565c0' : '#7b1fa2'}; padding: 2px 8px; border-radius: 10px; font-size: 0.8rem;">${e.grupo || '?'}</span></td>
+                                <td>${e.completado_pre ? '✅' : '⬜'}</td>
+                                <td>${e.completado_reto1 ? '✅' : '⬜'}</td>
+                                <td>${e.completado_reto2 ? '✅' : '⬜'}</td>
+                                <td>${e.completado_post ? '✅' : '⬜'}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+
+            <div style="text-align: center; margin-top: 20px;">
+                <button onclick="cargarAsignaturas()" class="btn btn-outline">Volver</button>
+            </div>
+        </div>
+    `;
 }
 
 document.addEventListener('DOMContentLoaded', initProfesorPanel);

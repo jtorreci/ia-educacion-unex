@@ -12,6 +12,9 @@ ui-debug.log
 .env.local
 .env.*.local
 
+# Firebase Admin SDK keys (NEVER commit)
+*-firebase-adminsdk-*.json
+
 # IDE
 .idea/
 .vscode/

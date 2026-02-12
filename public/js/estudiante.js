@@ -78,7 +78,7 @@ async function cargarInscripciones() {
     }
 }
 
-// Obtener estado de cuestionarios completados
+// Obtener estado de cuestionarios completados (lee del documento de inscripción)
 async function obtenerEstadoCuestionarios(asignaturaId, codigoAnonimo) {
     const estado = {
         pre: false,
@@ -88,40 +88,19 @@ async function obtenerEstadoCuestionarios(asignaturaId, codigoAnonimo) {
     };
 
     try {
-        // Cuestionario pre
-        const preSnapshot = await db.collection('respuestas_pre')
-            .where('codigoAnonimo', '==', codigoAnonimo)
-            .where('asignaturaId', '==', asignaturaId)
-            .limit(1)
+        const estudianteDoc = await db.collection('asignaturas')
+            .doc(asignaturaId)
+            .collection('estudiantes')
+            .doc(currentUser.email)
             .get();
-        estado.pre = !preSnapshot.empty;
 
-        // Encuesta reto 1
-        const reto1Snapshot = await db.collection('respuestas_reto')
-            .where('codigoAnonimo', '==', codigoAnonimo)
-            .where('asignaturaId', '==', asignaturaId)
-            .where('numeroReto', '==', 1)
-            .limit(1)
-            .get();
-        estado.reto1 = !reto1Snapshot.empty;
-
-        // Encuesta reto 2
-        const reto2Snapshot = await db.collection('respuestas_reto')
-            .where('codigoAnonimo', '==', codigoAnonimo)
-            .where('asignaturaId', '==', asignaturaId)
-            .where('numeroReto', '==', 2)
-            .limit(1)
-            .get();
-        estado.reto2 = !reto2Snapshot.empty;
-
-        // Cuestionario post
-        const postSnapshot = await db.collection('respuestas_post')
-            .where('codigoAnonimo', '==', codigoAnonimo)
-            .where('asignaturaId', '==', asignaturaId)
-            .limit(1)
-            .get();
-        estado.post = !postSnapshot.empty;
-
+        if (estudianteDoc.exists) {
+            const data = estudianteDoc.data();
+            estado.pre = data.completado_pre || false;
+            estado.reto1 = data.completado_reto1 || false;
+            estado.reto2 = data.completado_reto2 || false;
+            estado.post = data.completado_post || false;
+        }
     } catch (error) {
         console.error('Error obteniendo estado:', error);
     }
@@ -140,6 +119,7 @@ function renderAsignaturaCard(insc, estado) {
             <p style="color: var(--gris-oscuro); margin-bottom: 20px;">
                 ${insc.asignatura.titulacion} · ${insc.asignatura.curso}
                 ${insc.asignatura.esSimulacro ? '<span style="color: var(--naranja-warning);"> (Simulacro)</span>' : ''}
+                ${insc.estudiante.grupo ? '<br><span style="background: ' + (insc.estudiante.grupo === 'A' ? '#e3f2fd' : '#f3e5f5') + '; color: ' + (insc.estudiante.grupo === 'A' ? '#1565c0' : '#7b1fa2') + '; padding: 3px 10px; border-radius: 10px; font-size: 0.85rem; font-weight: 600;">Grupo ' + insc.estudiante.grupo + ' — Reto 1: ' + (insc.estudiante.grupo === 'A' ? 'SIN IA' : 'CON IA') + ' · Reto 2: ' + (insc.estudiante.grupo === 'A' ? 'CON IA' : 'SIN IA') + '</span>' : ''}
             </p>
 
             <div style="background: var(--gris-claro); border-radius: 20px; height: 10px; margin-bottom: 20px;">
@@ -242,6 +222,24 @@ async function guardarRespuestas(tipo, formData) {
     }
 
     try {
+        // Verificar si ya fue completado (protección contra duplicados)
+        const estudianteDoc = await db.collection('asignaturas')
+            .doc(asignaturaId)
+            .collection('estudiantes')
+            .doc(currentUser.email)
+            .get();
+
+        const estData = estudianteDoc.data();
+        const campoCompletado = tipo === 'pre' ? 'completado_pre' :
+                                 tipo === 'post' ? 'completado_post' :
+                                 'completado_reto' + (datos.numeroReto || sessionStorage.getItem('currentNumeroReto'));
+
+        if (estData[campoCompletado]) {
+            mostrarMensaje('Este cuestionario ya ha sido completado', 'warning');
+            setTimeout(volverAlPanel, 1500);
+            return;
+        }
+
         let collection;
         switch (tipo) {
             case 'pre':
@@ -256,6 +254,14 @@ async function guardarRespuestas(tipo, formData) {
         }
 
         await db.collection(collection).add(datos);
+
+        // Actualizar estado de completado en el documento de inscripción
+        await db.collection('asignaturas')
+            .doc(asignaturaId)
+            .collection('estudiantes')
+            .doc(currentUser.email)
+            .update({ [campoCompletado]: true });
+
         mostrarMensaje('Respuestas guardadas correctamente', 'success');
 
         // Limpiar sessionStorage
@@ -399,6 +405,17 @@ function submitFormPre(event) {
 }
 
 function getFormularioReto(numeroReto) {
+    // Determinar condición automática según grupo asignado
+    const asignaturaId = sessionStorage.getItem('currentAsignaturaId');
+    const insc = inscripciones.find(i => i.asignaturaId === asignaturaId);
+    const grupo = insc && insc.estudiante && insc.estudiante.grupo;
+    let condicionAuto = null;
+    if (grupo) {
+        condicionAuto = grupo === 'A'
+            ? (numeroReto === 1 ? 'sin_ia' : 'con_ia')
+            : (numeroReto === 1 ? 'con_ia' : 'sin_ia');
+    }
+
     return `
         <div class="form-card">
             <h2>Encuesta Post-Reto ${numeroReto}</h2>
@@ -410,9 +427,10 @@ function getFormularioReto(numeroReto) {
                 <div class="form-group">
                     <label class="required">¿Cómo realizaste este reto?</label>
                     <div class="options-group">
-                        <label class="option-item"><input type="radio" name="condicion" value="sin_ia" required id="cond-sin"> SIN usar IA</label>
-                        <label class="option-item"><input type="radio" name="condicion" value="con_ia" id="cond-con"> CON uso de IA</label>
+                        <label class="option-item"><input type="radio" name="condicion" value="sin_ia" required id="cond-sin" ${condicionAuto === 'sin_ia' ? 'checked' : ''} ${condicionAuto ? 'onclick="return false;"' : ''}> SIN usar IA</label>
+                        <label class="option-item"><input type="radio" name="condicion" value="con_ia" id="cond-con" ${condicionAuto === 'con_ia' ? 'checked' : ''} ${condicionAuto ? 'onclick="return false;"' : ''}> CON uso de IA</label>
                     </div>
+                    ${condicionAuto ? '<div class="alert alert-info" style="margin-top: 10px;">Tu grupo (' + grupo + ') tiene asignada la condición <strong>' + (condicionAuto === 'con_ia' ? 'CON IA' : 'SIN IA') + '</strong> para este reto.</div>' : ''}
                 </div>
 
                 <div class="form-group">

@@ -66,6 +66,44 @@ async function cargarEstadisticas() {
         document.getElementById('stat-respuestas').textContent = respuestasPre.size + respuestasPost.size;
         document.getElementById('stat-rubricas').textContent = rubricas.size;
 
+        // Progreso por asignatura
+        const dashboardSection = document.getElementById('seccion-dashboard');
+        // Eliminar progreso anterior si existe
+        const oldProgreso = document.getElementById('progreso-asignaturas');
+        if (oldProgreso) oldProgreso.remove();
+
+        let progresoHtml = '<div id="progreso-asignaturas" style="margin: 25px 0;"><h3 style="margin-bottom: 15px;">Progreso por asignatura</h3>';
+        for (const asigDoc of asignaturas.docs) {
+            const asigData = asigDoc.data();
+            const estudiantesSnap = await db.collection('asignaturas').doc(asigDoc.id).collection('estudiantes').get();
+            const estList = estudiantesSnap.docs.map(function(d) { return d.data(); });
+            const t = estList.length;
+            if (t === 0) continue;
+
+            const pre = estList.filter(function(e) { return e.completado_pre; }).length;
+            const r1 = estList.filter(function(e) { return e.completado_reto1; }).length;
+            const r2 = estList.filter(function(e) { return e.completado_reto2; }).length;
+            const post = estList.filter(function(e) { return e.completado_post; }).length;
+
+            progresoHtml += '<div style="background: var(--gris-fondo); padding: 15px; border-radius: 8px; margin-bottom: 10px;">' +
+                '<strong>' + asigData.nombre + '</strong> <span style="color: var(--gris-oscuro); font-size: 0.85rem;">(' + t + ' estudiantes)</span>' +
+                '<div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 10px;">' +
+                ['PRE:' + pre, 'Reto1:' + r1, 'Reto2:' + r2, 'POST:' + post].map(function(label, i) {
+                    var n = [pre, r1, r2, post][i];
+                    var color = (i === 0 || i === 3) ? 'var(--verde-primario)' : 'var(--azul-info)';
+                    return '<div><div style="font-size: 0.75rem; color: var(--gris-oscuro);">' + label + '/' + t + '</div>' +
+                        '<div style="background: var(--gris-claro); border-radius: 4px; height: 6px; margin-top: 4px;">' +
+                        '<div style="background: ' + color + '; width: ' + Math.round((n/t)*100) + '%; height: 100%; border-radius: 4px;"></div></div></div>';
+                }).join('') +
+                '</div></div>';
+        }
+        progresoHtml += '</div>';
+
+        const actividadH3 = dashboardSection.querySelector('h3');
+        if (actividadH3) {
+            actividadH3.insertAdjacentHTML('beforebegin', progresoHtml);
+        }
+
         // Actividad reciente
         const actividadContainer = document.getElementById('actividad-reciente');
         const respuestasRecientes = [...respuestasPre.docs, ...respuestasPost.docs]
@@ -259,28 +297,65 @@ async function verDetalle(id, tipo) {
         const doc = await db.collection(coleccion).doc(id).get();
         const data = doc.data();
 
-        alert(JSON.stringify(data, null, 2));
+        document.getElementById('modal-titulo').textContent = 'Detalle - Cuestionario ' + tipo;
+
+        let html = '<div style="display: flex; flex-direction: column; gap: 12px;">';
+        for (const [key, value] of Object.entries(data)) {
+            if (key === 'respuestas' && typeof value === 'object') {
+                html += '<div style="background: var(--gris-fondo); padding: 15px; border-radius: 8px;">';
+                html += '<strong style="color: var(--azul-primario);">Respuestas</strong>';
+                for (const [rKey, rVal] of Object.entries(value)) {
+                    const displayVal = Array.isArray(rVal) ? rVal.join(', ') : rVal;
+                    html += '<div style="margin-top: 8px; padding: 8px; background: white; border-radius: 6px;"><span style="font-weight: 500;">' + rKey + ':</span> ' + displayVal + '</div>';
+                }
+                html += '</div>';
+            } else {
+                const displayValue = value && value.toDate ? value.toDate().toLocaleString('es-ES') : value;
+                html += '<div style="padding: 10px; background: var(--gris-fondo); border-radius: 6px;"><span style="font-weight: 600; color: var(--azul-primario);">' + key + ':</span> ' + displayValue + '</div>';
+            }
+        }
+        html += '</div>';
+
+        document.getElementById('modal-contenido').innerHTML = html;
+        const modal = document.getElementById('modal-detalle');
+        modal.style.display = 'flex';
+        modal.onclick = function(e) { if (e.target === modal) cerrarModal(); };
     } catch (error) {
         mostrarMensaje('Error al cargar detalle', 'error');
     }
 }
 
+function cerrarModal() {
+    document.getElementById('modal-detalle').style.display = 'none';
+}
+
 // Exportación de datos
 async function prepararExportacion() {
+    // JSON
     document.getElementById('btn-exportar-pre').onclick = () => exportarColeccion('respuestas_pre', 'cuestionarios_pre.json');
     document.getElementById('btn-exportar-post').onclick = () => exportarColeccion('respuestas_post', 'cuestionarios_post.json');
     document.getElementById('btn-exportar-retos').onclick = () => exportarColeccion('respuestas_reto', 'encuestas_reto.json');
     document.getElementById('btn-exportar-rubricas').onclick = () => exportarColeccion('rubricas', 'rubricas.json');
+    // CSV
+    document.getElementById('btn-exportar-pre-csv').onclick = () => exportarColeccion('respuestas_pre', 'cuestionarios_pre.csv', 'csv');
+    document.getElementById('btn-exportar-post-csv').onclick = () => exportarColeccion('respuestas_post', 'cuestionarios_post.csv', 'csv');
+    document.getElementById('btn-exportar-retos-csv').onclick = () => exportarColeccion('respuestas_reto', 'encuestas_reto.csv', 'csv');
+    document.getElementById('btn-exportar-rubricas-csv').onclick = () => exportarColeccion('rubricas', 'rubricas.csv', 'csv');
+
     document.getElementById('btn-exportar-todo').onclick = exportarTodo;
 }
 
-async function exportarColeccion(nombre, archivo) {
+async function exportarColeccion(nombre, archivo, formato = 'json') {
     try {
         const snapshot = await db.collection(nombre).get();
         const datos = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
-        descargarJSON(datos, archivo);
-        mostrarMensaje(`Exportados ${datos.length} registros`, 'success');
+        if (formato === 'csv') {
+            descargarCSV(datos, archivo.replace('.json', '.csv'));
+        } else {
+            descargarJSON(datos, archivo);
+        }
+        mostrarMensaje('Exportados ' + datos.length + ' registros en ' + formato.toUpperCase(), 'success');
     } catch (error) {
         mostrarMensaje('Error al exportar: ' + error.message, 'error');
     }
@@ -308,6 +383,58 @@ async function exportarTodo() {
     } catch (error) {
         mostrarMensaje('Error al exportar: ' + error.message, 'error');
     }
+}
+
+function descargarCSV(datos, nombreArchivo) {
+    if (!datos.length) {
+        mostrarMensaje('No hay datos para exportar', 'warning');
+        return;
+    }
+
+    const flattenObj = (obj, prefix) => {
+        prefix = prefix || '';
+        const result = {};
+        for (const key in obj) {
+            if (obj[key] && typeof obj[key] === 'object' && !Array.isArray(obj[key]) && !(obj[key] instanceof Date) && !(obj[key].toDate)) {
+                Object.assign(result, flattenObj(obj[key], prefix + key + '.'));
+            } else if (obj[key] && obj[key].toDate) {
+                result[prefix + key] = obj[key].toDate().toISOString();
+            } else if (Array.isArray(obj[key])) {
+                result[prefix + key] = obj[key].join('; ');
+            } else {
+                result[prefix + key] = obj[key];
+            }
+        }
+        return result;
+    };
+
+    const flatData = datos.map(function(d) { return flattenObj(d); });
+    const headersSet = new Set();
+    flatData.forEach(function(row) { Object.keys(row).forEach(function(k) { headersSet.add(k); }); });
+    const headers = Array.from(headersSet);
+
+    const csvContent = [
+        headers.join(','),
+        ...flatData.map(function(row) {
+            return headers.map(function(h) {
+                const val = row[h] !== undefined ? String(row[h]) : '';
+                return (val.includes(',') || val.includes('"') || val.includes('\n'))
+                    ? '"' + val.replace(/"/g, '""') + '"'
+                    : val;
+            }).join(',');
+        })
+    ].join('\n');
+
+    const BOM = '\uFEFF';
+    const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = nombreArchivo;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
 }
 
 function descargarJSON(datos, nombreArchivo) {

@@ -41,6 +41,11 @@ service cloud.firestore {
                        isProfesor() ||
                        isAdmin());
         allow write: if isProfesor() || isAdmin();
+        // Permitir a estudiantes actualizar su propio estado de completado
+        allow update: if request.auth != null &&
+                        request.auth.token.email == estEmail &&
+                        request.resource.data.diff(resource.data).affectedKeys()
+                          .hasOnly(['completado_pre', 'completado_reto1', 'completado_reto2', 'completado_post']);
       }
     }
 
