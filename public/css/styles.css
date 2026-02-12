@@ -243,6 +243,13 @@ h1, h2, h3, h4, h5, h6 {
     gap: 24px;
 }
 
+.cards-grid-2x2 {
+    grid-template-columns: repeat(2, 1fr);
+    max-width: 900px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
 .card {
     background: var(--blanco);
     border-radius: var(--radio-grande);
@@ -500,7 +507,7 @@ select.form-control {
     align-items: center;
     justify-content: center;
     padding: 12px 28px;
-    border: none;
+    border: 2px solid transparent;
     border-radius: var(--radio-borde);
     font-size: 0.95rem;
     font-weight: 600;
@@ -524,21 +531,25 @@ select.form-control {
 
 .btn-primary {
     background: var(--verde-primario);
+    border-color: var(--verde-primario);
     color: var(--blanco);
 }
 
 .btn-primary:hover {
     background: #2F8F5B;
+    border-color: #2F8F5B;
     color: var(--blanco);
 }
 
 .btn-secondary {
     background: var(--azul-primario);
+    border-color: var(--azul-primario);
     color: var(--blanco);
 }
 
 .btn-secondary:hover {
     background: var(--azul-claro);
+    border-color: var(--azul-claro);
     color: var(--blanco);
 }
 
@@ -805,6 +816,12 @@ select.form-control {
     font-size: 0.9rem;
 }
 
+.resource-card .btn {
+    flex-shrink: 0;
+    white-space: nowrap;
+    margin-left: auto;
+}
+
 /* Secciones condicionales */
 .conditional-section {
     display: none;
@@ -1011,6 +1028,10 @@ blockquote {
 
     .cards-grid {
         gap: 16px;
+    }
+
+    .cards-grid-2x2 {
+        grid-template-columns: 1fr;
     }
 }
 
