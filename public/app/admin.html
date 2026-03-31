@@ -201,6 +201,9 @@
                     <div class="admin-nav-item active" data-seccion="dashboard" onclick="mostrarSeccion('dashboard')">
                         📊 Dashboard
                     </div>
+                    <div class="admin-nav-item" data-seccion="centros" onclick="mostrarSeccion('centros')">
+                        🏛️ Centros
+                    </div>
                     <div class="admin-nav-item" data-seccion="profesores" onclick="mostrarSeccion('profesores')">
                         👨‍🏫 Profesores
                     </div>
@@ -233,6 +236,10 @@
 
                         <div class="stats-grid">
                             <div class="stat-card">
+                                <div class="number" id="stat-centros">0</div>
+                                <div class="label">Centros</div>
+                            </div>
+                            <div class="stat-card">
                                 <div class="number" id="stat-profesores">0</div>
                                 <div class="label">Profesores</div>
                             </div>
@@ -260,6 +267,57 @@
                         </div>
                     </div>
 
+                    <!-- Centros -->
+                    <div id="seccion-centros" class="admin-section" style="display: none;">
+                        <h2>Centros Participantes</h2>
+
+                        <div class="form-card" style="margin-bottom: 25px;">
+                            <h3>Registrar nuevo centro</h3>
+                            <form onsubmit="agregarCentro(event)">
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                                    <div class="form-group">
+                                        <label class="required">Nombre completo</label>
+                                        <input type="text" name="nombre" class="form-control" placeholder="Universidad de..." required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="required">Nombre corto</label>
+                                        <input type="text" name="nombreCorto" class="form-control" placeholder="UEx, UCM, UNAM..." required>
+                                    </div>
+                                </div>
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                                    <div class="form-group">
+                                        <label class="required">País</label>
+                                        <input type="text" name="pais" class="form-control" placeholder="España" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="required">Dominios de email (separados por coma)</label>
+                                        <input type="text" name="dominios" class="form-control" placeholder="univ.es, alumnos.univ.es" required>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label>Titulaciones (separadas por coma, dejar vacío para usar las por defecto)</label>
+                                    <input type="text" name="titulaciones" class="form-control" placeholder="Ingeniería Civil, Grado en Edificación...">
+                                </div>
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                                    <div class="form-group">
+                                        <label>Persona de contacto</label>
+                                        <input type="text" name="contactoNombre" class="form-control" placeholder="Nombre del coordinador">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Email de contacto</label>
+                                        <input type="email" name="contactoEmail" class="form-control" placeholder="coordinador@univ.es">
+                                    </div>
+                                </div>
+                                <button type="submit" class="btn btn-primary">Registrar centro</button>
+                            </form>
+                        </div>
+
+                        <h3>Centros registrados</h3>
+                        <div id="lista-centros">
+                            <p>Cargando...</p>
+                        </div>
+                    </div>
+
                     <!-- Profesores -->
                     <div id="seccion-profesores" class="admin-section" style="display: none;">
                         <h2>Gestión de Profesores</h2>
@@ -267,10 +325,16 @@
                         <div class="form-card" style="margin-bottom: 25px;">
                             <h3>Añadir nuevo profesor</h3>
                             <form onsubmit="agregarProfesor(event)">
-                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px;">
+                                    <div class="form-group">
+                                        <label class="required">Centro</label>
+                                        <select name="centroId" id="select-centro-profesor" class="form-control" required>
+                                            <option value="">Selecciona centro...</option>
+                                        </select>
+                                    </div>
                                     <div class="form-group">
                                         <label class="required">Email institucional</label>
-                                        <input type="email" name="email" class="form-control" placeholder="profesor@unex.es" required>
+                                        <input type="email" name="email" class="form-control" placeholder="profesor@univ.es" required>
                                     </div>
                                     <div class="form-group">
                                         <label>Nombre</label>

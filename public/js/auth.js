@@ -35,6 +35,30 @@ async function completarLogin() {
 
             if (userDoc.exists) {
                 const userData = userDoc.data();
+
+                // Verificar que el centro del usuario sigue activo
+                if (userData.centroId) {
+                    const centro = await obtenerCentro(userData.centroId);
+                    if (!centro) {
+                        await auth.signOut();
+                        throw new Error('Tu universidad ha sido desactivada del proyecto. Contacta con el coordinador.');
+                    }
+                }
+
+                // Backward compatibility: asociar centroId si no lo tiene
+                if (!userData.centroId && userData.rol !== 'admin') {
+                    const centro = await buscarCentroPorEmail(email.toLowerCase());
+                    if (centro && centro.id !== '_uex_default') {
+                        // Actualizar usuario con su centroId (solo si es admin el que escribe, o si es el propio usuario)
+                        try {
+                            await db.collection('usuarios').doc(email.toLowerCase()).update({ centroId: centro.id });
+                        } catch (e) {
+                            // Puede fallar por permisos, no es crítico
+                            console.warn('No se pudo asociar centroId automáticamente:', e.message);
+                        }
+                    }
+                }
+
                 // Redirigir según rol
                 switch (userData.rol) {
                     case 'admin':
@@ -52,7 +76,9 @@ async function completarLogin() {
             } else {
                 // Usuario autenticado pero no registrado en el sistema
                 await auth.signOut();
-                throw new Error('Este email no está registrado en el sistema. Contacta con tu profesor.');
+                throw new Error('Tu profesor aún no te ha dado de alta en el sistema. ' +
+                    'Pídele que añada tu email desde su panel de profesor (sección "Gestionar estudiantes") ' +
+                    'y después vuelve a intentarlo.');
             }
 
             return result.user;
@@ -104,12 +130,23 @@ function initLoginPage() {
 
             const email = emailInput.value.trim().toLowerCase();
 
-            if (!email.endsWith('@unex.es') && !email.endsWith('@alumnos.unex.es')) {
-                mensajeDiv.innerHTML = '<div class="alert alert-error">Debes usar un email institucional (@unex.es o @alumnos.unex.es)</div>';
+            // Validar dominio contra centros registrados
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Verificando...';
+
+            const centro = await buscarCentroPorEmail(email);
+            if (!centro) {
+                mensajeDiv.innerHTML = '<div class="alert alert-error">' +
+                    'Tu universidad no está registrada en el proyecto. ' +
+                    'Debes usar un email institucional de una universidad participante.<br><br>' +
+                    'Si tu universidad quiere participar, visita la página ' +
+                    '<a href="/participar.html">Participar</a>.' +
+                    '</div>';
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Enviar enlace de acceso';
                 return;
             }
 
-            submitBtn.disabled = true;
             submitBtn.textContent = 'Enviando...';
 
             try {

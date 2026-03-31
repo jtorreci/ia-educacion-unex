@@ -2,6 +2,7 @@
 
 let currentUser = null;
 let currentUserData = null;
+let currentCentro = null;
 let asignaturas = [];
 
 // Inicializar panel
@@ -10,6 +11,15 @@ async function initProfesorPanel() {
         const { user, userData } = await verificarAuth('profesor');
         currentUser = user;
         currentUserData = userData;
+
+        // Cargar centro del profesor
+        if (userData.centroId) {
+            currentCentro = await obtenerCentro(userData.centroId);
+            await cargarConfigCentro(userData.centroId);
+        } else {
+            // Backward compatibility: buscar centro por dominio de email
+            currentCentro = await buscarCentroPorEmail(user.email);
+        }
 
         document.getElementById('user-name').textContent = userData.nombre || user.email;
         document.getElementById('user-email').textContent = user.email;
@@ -142,14 +152,20 @@ async function crearAsignatura(event) {
     const form = event.target;
 
     try {
-        await db.collection('asignaturas').add({
+        const asigData = {
             nombre: form.nombre.value,
             titulacion: form.titulacion.value,
             curso: form.curso.value,
             esSimulacro: form.esSimulacro.checked,
             profesorEmail: currentUser.email,
             fechaCreacion: firebase.firestore.FieldValue.serverTimestamp()
-        });
+        };
+        // Asociar al centro del profesor
+        if (currentCentro) {
+            asigData.centroId = currentCentro.id;
+            asigData.centroNombre = currentCentro.nombreCorto || currentCentro.nombre;
+        }
+        await db.collection('asignaturas').add(asigData);
 
         mostrarMensaje('Asignatura creada correctamente', 'success');
         cargarAsignaturas();
@@ -205,6 +221,26 @@ async function agregarEstudiantes(event, asignaturaId) {
     event.preventDefault();
     const emails = event.target.emails.value.split('\n').map(e => e.trim().toLowerCase()).filter(e => e);
 
+    // Validar dominios contra el centro del profesor
+    if (currentCentro && currentCentro.dominios) {
+        const emailsRechazados = [];
+        for (const email of emails) {
+            const dominio = extraerDominio(email);
+            if (!dominio || currentCentro.dominios.indexOf(dominio) === -1) {
+                emailsRechazados.push(email);
+            }
+        }
+        if (emailsRechazados.length > 0) {
+            const dominiosPermitidos = currentCentro.dominios.join(', @');
+            mostrarMensaje(
+                'Los siguientes emails no pertenecen a tu universidad (@' + dominiosPermitidos + '):<br>' +
+                emailsRechazados.join('<br>'),
+                'error'
+            );
+            return;
+        }
+    }
+
     try {
         // Contar grupos existentes para equilibrar
         const existingSnap = await db.collection('asignaturas').doc(asignaturaId).collection('estudiantes').get();
@@ -224,11 +260,16 @@ async function agregarEstudiantes(event, asignaturaId) {
 
             const codigoAnonimo = await generarCodigoAnonimo(email, asignaturaId);
 
-            await db.collection('usuarios').doc(email).set({
+            const usuarioData = {
                 email,
                 rol: 'estudiante',
                 fechaRegistro: firebase.firestore.FieldValue.serverTimestamp()
-            }, { merge: true });
+            };
+            if (currentCentro) {
+                usuarioData.centroId = currentCentro.id;
+            }
+
+            await db.collection('usuarios').doc(email).set(usuarioData, { merge: true });
 
             await db.collection('asignaturas').doc(asignaturaId).collection('estudiantes').doc(email).set({
                 nombre: email.split('@')[0],

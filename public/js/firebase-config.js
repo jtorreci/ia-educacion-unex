@@ -22,19 +22,108 @@ const actionCodeSettings = {
     handleCodeInApp: true
 };
 
-// Titulaciones disponibles
-const TITULACIONES = [
+// Titulaciones por defecto (fallback si no hay centros en Firestore)
+const TITULACIONES_DEFAULT = [
     'Ingeniería Civil',
     'Grado en Edificación',
     'Máster en Ingeniería de Caminos, Canales y Puertos',
     'Máster BIM'
 ];
 
-// Cursos disponibles
-const CURSOS = ['1º', '2º', '3º', '4º', 'Máster'];
+// Cursos por defecto (fallback)
+const CURSOS_DEFAULT = ['1º', '2º', '3º', '4º', 'Máster'];
+
+// Variables activas (se sobreescriben al cargar centro del usuario)
+let TITULACIONES = [...TITULACIONES_DEFAULT];
+let CURSOS = [...CURSOS_DEFAULT];
 
 // Salt para generar códigos anónimos (NO exponer en producción real)
 const SALT_ANONIMO = 'UEx_IA_2026_';
+
+// --- Gestión de centros participantes ---
+
+// Caché de centros (evita consultas repetidas a Firestore)
+let _centrosCache = null;
+let _centrosCacheTimestamp = 0;
+const CENTROS_CACHE_TTL = 5 * 60 * 1000; // 5 minutos
+
+// Centro UEx por defecto (fallback para backward compatibility)
+const CENTRO_UEX_DEFAULT = {
+    id: '_uex_default',
+    nombre: 'Universidad de Extremadura',
+    nombreCorto: 'UEx',
+    pais: 'España',
+    dominios: ['unex.es', 'alumnos.unex.es'],
+    titulaciones: TITULACIONES_DEFAULT,
+    cursos: CURSOS_DEFAULT,
+    activo: true
+};
+
+// Cargar todos los centros activos (con caché)
+async function cargarCentros(forzar) {
+    const ahora = Date.now();
+    if (!forzar && _centrosCache && (ahora - _centrosCacheTimestamp) < CENTROS_CACHE_TTL) {
+        return _centrosCache;
+    }
+
+    try {
+        const snapshot = await db.collection('centros').where('activo', '==', true).get();
+        if (snapshot.empty) {
+            // Fallback: si no hay centros en Firestore, usar UEx por defecto
+            _centrosCache = [CENTRO_UEX_DEFAULT];
+        } else {
+            _centrosCache = snapshot.docs.map(function(doc) {
+                return Object.assign({ id: doc.id }, doc.data());
+            });
+        }
+        _centrosCacheTimestamp = ahora;
+        return _centrosCache;
+    } catch (error) {
+        console.error('Error cargando centros:', error);
+        // Fallback en caso de error
+        if (_centrosCache) return _centrosCache;
+        return [CENTRO_UEX_DEFAULT];
+    }
+}
+
+// Extraer dominio de un email
+function extraerDominio(email) {
+    var parts = email.toLowerCase().split('@');
+    return parts.length === 2 ? parts[1] : null;
+}
+
+// Buscar centro por dominio de email
+async function buscarCentroPorEmail(email) {
+    var dominio = extraerDominio(email);
+    if (!dominio) return null;
+
+    var centros = await cargarCentros();
+    for (var i = 0; i < centros.length; i++) {
+        if (centros[i].dominios && centros[i].dominios.indexOf(dominio) !== -1) {
+            return centros[i];
+        }
+    }
+    return null;
+}
+
+// Obtener centro por ID
+async function obtenerCentro(centroId) {
+    var centros = await cargarCentros();
+    for (var i = 0; i < centros.length; i++) {
+        if (centros[i].id === centroId) return centros[i];
+    }
+    return null;
+}
+
+// Cargar titulaciones y cursos del centro del usuario actual
+async function cargarConfigCentro(centroId) {
+    if (!centroId) return;
+    var centro = await obtenerCentro(centroId);
+    if (centro) {
+        TITULACIONES = centro.titulaciones || TITULACIONES_DEFAULT;
+        CURSOS = centro.cursos || CURSOS_DEFAULT;
+    }
+}
 
 // Función para generar código anónimo
 async function generarCodigoAnonimo(email, asignaturaId) {

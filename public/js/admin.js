@@ -35,6 +35,7 @@ function mostrarSeccion(seccion) {
     // Cargar datos según sección
     switch(seccion) {
         case 'dashboard': cargarEstadisticas(); break;
+        case 'centros': cargarListaCentros(); break;
         case 'profesores': cargarProfesores(); break;
         case 'asignaturas': cargarTodasAsignaturas(); break;
         case 'respuestas': cargarRespuestas(); break;
@@ -45,7 +46,8 @@ function mostrarSeccion(seccion) {
 // Dashboard con estadísticas
 async function cargarEstadisticas() {
     try {
-        const [profesores, asignaturas, respuestasPre, respuestasPost, rubricas] = await Promise.all([
+        const [centros, profesores, asignaturas, respuestasPre, respuestasPost, rubricas] = await Promise.all([
+            db.collection('centros').where('activo', '==', true).get(),
             db.collection('usuarios').where('rol', '==', 'profesor').get(),
             db.collection('asignaturas').get(),
             db.collection('respuestas_pre').get(),
@@ -60,6 +62,7 @@ async function cargarEstadisticas() {
             totalEstudiantes += estudiantesSnap.size;
         }
 
+        document.getElementById('stat-centros').textContent = centros.size;
         document.getElementById('stat-profesores').textContent = profesores.size;
         document.getElementById('stat-asignaturas').textContent = asignaturas.size;
         document.getElementById('stat-estudiantes').textContent = totalEstudiantes;
@@ -130,10 +133,153 @@ async function cargarEstadisticas() {
     }
 }
 
-// Gestión de profesores
+// --- Gestión de centros ---
+
+async function cargarListaCentros() {
+    const container = document.getElementById('lista-centros');
+    container.innerHTML = '<p>Cargando...</p>';
+
+    try {
+        const snapshot = await db.collection('centros').get();
+        const centros = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+        if (centros.length === 0) {
+            container.innerHTML = '<div class="alert alert-info">No hay centros registrados. Registra el primer centro arriba.</div>';
+            return;
+        }
+
+        container.innerHTML = centros.map(c => `
+            <div class="form-card" style="margin-bottom: 12px; opacity: ${c.activo ? 1 : 0.6};">
+                <div style="display: flex; justify-content: space-between; align-items: start;">
+                    <div>
+                        <h3>${c.nombre} <span style="color: var(--gris-oscuro); font-weight: 400; font-size: 0.9rem;">(${c.nombreCorto})</span></h3>
+                        <p style="color: var(--gris-oscuro); font-size: 0.9rem;">
+                            📍 ${c.pais} · 📧 @${(c.dominios || []).join(', @')}
+                        </p>
+                        ${c.contacto ? '<p style="color: var(--gris-oscuro); font-size: 0.85rem;">Contacto: ' + (c.contacto.nombre || '') + ' (' + (c.contacto.email || '') + ')</p>' : ''}
+                        ${c.titulaciones ? '<p style="color: var(--gris-oscuro); font-size: 0.85rem;">Titulaciones: ' + c.titulaciones.join(', ') + '</p>' : ''}
+                    </div>
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <span style="background: ${c.activo ? 'var(--verde-primario)' : 'var(--gris-medio)'}; color: white; padding: 4px 12px; border-radius: 12px; font-size: 0.8rem;">
+                            ${c.activo ? 'Activo' : 'Inactivo'}
+                        </span>
+                        <button onclick="toggleCentro('${c.id}', ${!c.activo})" class="btn btn-sm btn-outline">
+                            ${c.activo ? 'Desactivar' : 'Activar'}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+
+    } catch (error) {
+        container.innerHTML = '<div class="alert alert-error">Error al cargar centros</div>';
+    }
+}
+
+async function agregarCentro(event) {
+    event.preventDefault();
+    const form = event.target;
+
+    const dominiosRaw = form.dominios.value.split(',').map(d => d.trim().toLowerCase().replace(/^@/, '')).filter(d => d);
+    if (dominiosRaw.length === 0) {
+        mostrarMensaje('Debes indicar al menos un dominio de email', 'error');
+        return;
+    }
+
+    // Verificar que los dominios no estén ya registrados en otro centro
+    try {
+        const existentes = await db.collection('centros').get();
+        for (const doc of existentes.docs) {
+            const centroExistente = doc.data();
+            for (const dominio of dominiosRaw) {
+                if (centroExistente.dominios && centroExistente.dominios.indexOf(dominio) !== -1) {
+                    mostrarMensaje('El dominio @' + dominio + ' ya está registrado en "' + centroExistente.nombre + '"', 'error');
+                    return;
+                }
+            }
+        }
+    } catch (error) {
+        // Continuar si falla la verificación
+    }
+
+    const titulacionesRaw = form.titulaciones.value.trim();
+    const titulaciones = titulacionesRaw
+        ? titulacionesRaw.split(',').map(t => t.trim()).filter(t => t)
+        : TITULACIONES_DEFAULT;
+
+    const centroData = {
+        nombre: form.nombre.value.trim(),
+        nombreCorto: form.nombreCorto.value.trim(),
+        pais: form.pais.value.trim(),
+        dominios: dominiosRaw,
+        titulaciones: titulaciones,
+        cursos: CURSOS_DEFAULT,
+        activo: true,
+        fechaAlta: firebase.firestore.FieldValue.serverTimestamp()
+    };
+
+    if (form.contactoNombre.value.trim() || form.contactoEmail.value.trim()) {
+        centroData.contacto = {
+            nombre: form.contactoNombre.value.trim(),
+            email: form.contactoEmail.value.trim()
+        };
+    }
+
+    try {
+        await db.collection('centros').add(centroData);
+        mostrarMensaje('Centro "' + centroData.nombre + '" registrado correctamente', 'success');
+        form.reset();
+        // Invalidar caché de centros
+        _centrosCacheTimestamp = 0;
+        cargarListaCentros();
+    } catch (error) {
+        mostrarMensaje('Error: ' + error.message, 'error');
+    }
+}
+
+async function toggleCentro(centroId, nuevoEstado) {
+    const accion = nuevoEstado ? 'activar' : 'desactivar';
+    if (!confirm('¿' + accion.charAt(0).toUpperCase() + accion.slice(1) + ' este centro? ' +
+        (nuevoEstado ? '' : 'Los profesores y estudiantes de este centro no podrán acceder.'))) return;
+
+    try {
+        await db.collection('centros').doc(centroId).update({ activo: nuevoEstado });
+        _centrosCacheTimestamp = 0;
+        mostrarMensaje('Centro ' + accion + 'do', 'success');
+        cargarListaCentros();
+    } catch (error) {
+        mostrarMensaje('Error: ' + error.message, 'error');
+    }
+}
+
+// Poblar selector de centros en el form de profesores
+async function poblarSelectorCentros() {
+    const select = document.getElementById('select-centro-profesor');
+    if (!select) return;
+
+    try {
+        const centros = await cargarCentros(true);
+        select.innerHTML = '<option value="">Selecciona centro...</option>';
+        centros.forEach(function(c) {
+            var opt = document.createElement('option');
+            opt.value = c.id;
+            opt.textContent = c.nombreCorto + ' - ' + c.nombre;
+            opt.dataset.dominios = (c.dominios || []).join(',');
+            select.appendChild(opt);
+        });
+    } catch (error) {
+        console.error('Error cargando centros para selector:', error);
+    }
+}
+
+// --- Gestión de profesores ---
+
 async function cargarProfesores() {
     const container = document.getElementById('lista-profesores');
     container.innerHTML = '<p>Cargando...</p>';
+
+    // Cargar selector de centros
+    await poblarSelectorCentros();
 
     try {
         const snapshot = await db.collection('usuarios').where('rol', '==', 'profesor').get();
@@ -144,11 +290,17 @@ async function cargarProfesores() {
             return;
         }
 
+        // Cargar nombres de centros para mostrar
+        const centros = await cargarCentros();
+        const centroMap = {};
+        centros.forEach(function(c) { centroMap[c.id] = c.nombreCorto || c.nombre; });
+
         container.innerHTML = profesores.map(p => `
             <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px; background: var(--gris-fondo); border-radius: 6px; margin-bottom: 8px;">
                 <div>
                     <strong>${p.nombre || p.email}</strong>
                     <span style="color: var(--gris-oscuro); font-size: 0.85rem;"> - ${p.email}</span>
+                    ${p.centroId ? '<span style="background: #EBF8FF; color: #2B6CB0; padding: 2px 8px; border-radius: 10px; font-size: 0.75rem; margin-left: 8px;">' + (centroMap[p.centroId] || p.centroId) + '</span>' : ''}
                 </div>
                 <button onclick="eliminarProfesor('${p.email}')" class="btn btn-sm" style="background: var(--rojo-error); color: white;">Eliminar</button>
             </div>
@@ -164,9 +316,21 @@ async function agregarProfesor(event) {
     const form = event.target;
     const email = form.email.value.trim().toLowerCase();
     const nombre = form.nombre.value.trim();
+    const centroId = form.centroId.value;
 
-    if (!email.endsWith('@unex.es')) {
-        mostrarMensaje('El email debe ser institucional (@unex.es)', 'error');
+    if (!centroId) {
+        mostrarMensaje('Selecciona un centro', 'error');
+        return;
+    }
+
+    // Validar que el email pertenece al centro seleccionado
+    const select = form.centroId;
+    const dominiosStr = select.options[select.selectedIndex].dataset.dominios;
+    const dominios = dominiosStr ? dominiosStr.split(',') : [];
+    const dominio = extraerDominio(email);
+
+    if (dominios.length > 0 && dominios.indexOf(dominio) === -1) {
+        mostrarMensaje('El email @' + dominio + ' no pertenece al centro seleccionado (dominios permitidos: @' + dominios.join(', @') + ')', 'error');
         return;
     }
 
@@ -175,6 +339,7 @@ async function agregarProfesor(event) {
             email,
             nombre,
             rol: 'profesor',
+            centroId,
             fechaRegistro: firebase.firestore.FieldValue.serverTimestamp()
         });
 

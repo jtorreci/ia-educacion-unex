@@ -14,11 +14,22 @@ service cloud.firestore {
              get(/databases/$(database)/documents/usuarios/$(request.auth.token.email)).data.rol == 'profesor';
     }
 
-    // Usuarios: lectura del propio perfil, escritura solo admin
+    // Centros participantes (universidades)
+    // Lectura publica: la lista de universidades y sus dominios es informacion publica
+    // Escritura solo admin: solo el administrador puede dar de alta centros
+    match /centros/{centroId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Usuarios: lectura del propio perfil, escritura admin o profesor (alta estudiantes)
     match /usuarios/{email} {
       allow read: if request.auth != null && request.auth.token.email == email;
       allow read: if isAdmin();
       allow write: if isAdmin();
+      // Profesores pueden crear/actualizar documentos de estudiantes
+      allow create, update: if isProfesor() &&
+                              request.resource.data.rol == 'estudiante';
     }
 
     // Profesores pueden leer la lista de usuarios (para verificar roles)
