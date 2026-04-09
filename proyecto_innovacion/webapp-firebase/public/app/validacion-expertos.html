@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Validación Experta - IA y Aprendizaje</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../css/styles.css">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧭</text></svg>">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="container">
+            <div class="navbar-content">
+                <a href="/" class="navbar-brand">
+                    <span class="navbar-logo">🎓</span>
+                    <span>IA y Aprendizaje</span>
+                </a>
+                <div class="navbar-actions">
+                    <a href="/app/profesor.html" class="btn btn-sm btn-outline">Volver al panel</a>
+                    <span id="user-email" style="color: var(--gris-oscuro);"></span>
+                    <button onclick="cerrarSesion()" class="btn btn-sm btn-outline">Cerrar sesión</button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <section class="section">
+        <div class="container">
+            <div id="mensaje-container"></div>
+
+            <div class="form-hero-card">
+                <div class="project-tool-eyebrow">Juicio experto</div>
+                <h1>Formulario de validación de instrumentos</h1>
+                <p>Esta página recoge las valoraciones del equipo sobre cuestionarios y rúbrica del estudio. Las respuestas se guardan en Firestore para poder calcular después los indicadores de validez de contenido y revisar cualitativamente los ítems antes de la aplicación completa.</p>
+                <div class="form-badges">
+                    <span class="form-badge">Aiken's V</span>
+                    <span class="form-badge">Relevancia, claridad y coherencia</span>
+                    <span class="form-badge">Edición posterior permitida</span>
+                </div>
+            </div>
+
+            <div class="form-card">
+                <div class="validation-status">
+                    <div class="status-pill">Estado: <strong id="estado-formulario">Cargando…</strong></div>
+                    <div class="mini-note" id="ultima-actualizacion">Buscando respuestas previas…</div>
+                </div>
+                <div class="alert alert-info">
+                    Este formulario sirve para documentar la validez de contenido de los instrumentos. La consistencia interna y el comportamiento empírico de cada bloque se estimarán después, con datos reales del estudio.
+                </div>
+            </div>
+
+            <form id="form-validacion-expertos">
+                <div class="form-card">
+                    <h2>Datos de la persona experta</h2>
+                    <div class="instrument-grid">
+                        <div class="form-group">
+                            <label class="required" for="nombre">Nombre y apellidos</label>
+                            <input id="nombre" name="nombre" type="text" class="form-control" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="email">Email</label>
+                            <input id="email" name="email" type="email" class="form-control" readonly>
+                        </div>
+                        <div class="form-group">
+                            <label class="required" for="areaDepartamento">Área o departamento</label>
+                            <input id="areaDepartamento" name="areaDepartamento" type="text" class="form-control" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="required" for="perfil">Perfil</label>
+                            <select id="perfil" name="perfil" class="form-control" required>
+                                <option value="">Selecciona…</option>
+                                <option value="innovacion_educativa">Innovación educativa</option>
+                                <option value="ingenieria_civil">Ingeniería civil / disciplina del estudio</option>
+                                <option value="metodologia_estadistica">Metodología / estadística</option>
+                                <option value="tecnologia_educativa">Tecnología educativa</option>
+                                <option value="otro">Otro</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="required" for="anosDocencia">Años de experiencia docente</label>
+                            <input id="anosDocencia" name="anosDocencia" type="number" min="0" step="1" class="form-control" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="required" for="anosInvestigacion">Años de experiencia investigadora</label>
+                            <input id="anosInvestigacion" name="anosInvestigacion" type="number" min="0" step="1" class="form-control" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="required" for="usoIADocencia">Ha trabajado previamente con IA generativa en docencia</label>
+                            <select id="usoIADocencia" name="usoIADocencia" class="form-control" required>
+                                <option value="">Selecciona…</option>
+                                <option value="si">Sí</option>
+                                <option value="no">No</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="instrumentos-container"></div>
+
+                <div class="form-card">
+                    <h2>Observaciones finales</h2>
+                    <div class="instrument-grid">
+                        <div class="form-group">
+                            <label for="fortalezas">Principales fortalezas del conjunto instrumental</label>
+                            <textarea id="fortalezas" name="fortalezas" class="form-control"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="debilidades">Principales debilidades</label>
+                            <textarea id="debilidades" name="debilidades" class="form-control"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="cambiosImprescindibles">Cambios imprescindibles antes de la aplicación</label>
+                            <textarea id="cambiosImprescindibles" name="cambiosImprescindibles" class="form-control"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="cambiosRecomendables">Cambios recomendables pero no imprescindibles</label>
+                            <textarea id="cambiosRecomendables" name="cambiosRecomendables" class="form-control"></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-card">
+                    <div style="display: flex; gap: 15px; flex-wrap: wrap; justify-content: space-between; align-items: center;">
+                        <p class="mini-note">Puedes reenviar este formulario tantas veces como haga falta durante el periodo de revisión. Cada envío sustituye tu versión anterior.</p>
+                        <button type="submit" class="btn btn-primary btn-lg" id="btn-guardar">Guardar valoración</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </section>
+
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-copy">
+                Proyecto de Innovación Docente · Universidad de Extremadura · 2025-2026
+            </div>
+        </div>
+    </footer>
+
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <script src="../js/firebase-config.js"></script>
+    <script src="../js/validacion-expertos.js"></script>
+</body>
+</html>
