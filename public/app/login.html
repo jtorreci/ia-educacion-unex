@@ -24,6 +24,7 @@
                     <li><a href="/">Inicio</a></li>
                     <li><a href="../proyecto.html">El Proyecto</a></li>
                     <li><a href="../recursos.html">Recursos</a></li>
+                    <li><a href="../tutorial.html">Tutorial</a></li>
                     <li><a href="../participar.html">Participar</a></li>
                 </ul>
             </div>
@@ -33,32 +34,118 @@
     <!-- Login -->
     <div class="login-container">
         <div class="login-box">
-            <h1>🎓 Acceder</h1>
-            <p class="subtitle">Introduce tu email institucional para recibir un enlace de acceso</p>
-
             <div id="mensaje"></div>
 
-            <form id="login-form">
-                <div class="form-group">
-                    <label for="email">Email institucional</label>
-                    <input type="email" id="email" class="form-control" placeholder="tu.email@universidad.es" required>
-                </div>
-                <button type="submit" id="submit-btn" class="btn btn-primary btn-block">
-                    Enviar enlace de acceso
-                </button>
-            </form>
+            <!-- PANEL: INICIAR SESIÓN (por defecto) -->
+            <div id="panel-login">
+                <h1>Acceder</h1>
+                <p class="subtitle">Introduce tu email institucional y contraseña</p>
 
-            <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid var(--gris-claro);">
-                <p style="color: var(--gris-oscuro); font-size: 0.9rem;">
-                    <strong>¿Cómo funciona?</strong><br>
-                    1. Introduce tu email institucional<br>
-                    2. Recibirás un enlace en tu correo<br>
-                    3. Haz clic en el enlace para acceder<br>
-                    <em>Sin contraseñas que recordar</em>
-                </p>
+                <form id="form-login" onsubmit="loginConPassword(event)">
+                    <div class="form-group">
+                        <label for="login-email">Email institucional</label>
+                        <input type="email" id="login-email" name="email" class="form-control" placeholder="tu.email@universidad.es" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="login-password">Contraseña</label>
+                        <input type="password" id="login-password" name="password" class="form-control" placeholder="Tu contraseña" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-block">Entrar</button>
+                </form>
+
+                <div style="margin-top: 20px; text-align: center;">
+                    <p style="margin-bottom: 8px;">
+                        <a href="#" onclick="mostrarPanel('registro'); return false;" style="color: var(--azul-primario); font-weight: 500;">
+                            ¿No tienes cuenta? Regístrate
+                        </a>
+                    </p>
+                    <p style="margin-bottom: 8px;">
+                        <a href="#" onclick="mostrarPanel('reset'); return false;" style="color: var(--gris-oscuro); font-size: 0.9rem;">
+                            Olvidé mi contraseña / Establecer contraseña
+                        </a>
+                    </p>
+                </div>
+
+                <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--gris-claro); text-align: center;">
+                    <a href="#" onclick="mostrarPanel('magic'); return false;" style="color: var(--gris-oscuro); font-size: 0.85rem;">
+                        Acceder con enlace de email (sin contraseña)
+                    </a>
+                </div>
             </div>
 
-            <div style="margin-top: 20px;">
+            <!-- PANEL: REGISTRO -->
+            <div id="panel-registro" style="display: none;">
+                <h1>Crear cuenta</h1>
+                <p class="subtitle">Usa tu email institucional para registrarte</p>
+
+                <form id="form-registro" onsubmit="registrarConPassword(event)">
+                    <div class="form-group">
+                        <label for="reg-email">Email institucional</label>
+                        <input type="email" id="reg-email" name="email" class="form-control" placeholder="tu.email@universidad.es" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="reg-password">Contraseña</label>
+                        <input type="password" id="reg-password" name="password" class="form-control" placeholder="Mínimo 6 caracteres" required minlength="6">
+                    </div>
+                    <div class="form-group">
+                        <label for="reg-password2">Confirmar contraseña</label>
+                        <input type="password" id="reg-password2" name="password2" class="form-control" placeholder="Repite la contraseña" required minlength="6">
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-block">Crear cuenta</button>
+                </form>
+
+                <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid var(--gris-claro); text-align: center;">
+                    <p style="color: var(--gris-oscuro); font-size: 0.9rem; margin-bottom: 8px;">
+                        Recibirás un email de verificación para activar tu cuenta.
+                    </p>
+                    <a href="#" onclick="mostrarPanel('login'); return false;" style="color: var(--azul-primario);">
+                        ¿Ya tienes cuenta? Inicia sesión
+                    </a>
+                </div>
+            </div>
+
+            <!-- PANEL: RESTABLECER CONTRASEÑA -->
+            <div id="panel-reset" style="display: none;">
+                <h1>Restablecer contraseña</h1>
+                <p class="subtitle">Te enviaremos un enlace para crear o cambiar tu contraseña</p>
+
+                <form id="form-reset" onsubmit="enviarResetPassword(event)">
+                    <div class="form-group">
+                        <label for="reset-email">Email</label>
+                        <input type="email" id="reset-email" name="email" class="form-control" placeholder="tu.email@universidad.es" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-block">Enviar enlace</button>
+                </form>
+
+                <div style="margin-top: 20px; text-align: center;">
+                    <a href="#" onclick="mostrarPanel('login'); return false;" style="color: var(--azul-primario);">
+                        Volver al inicio de sesión
+                    </a>
+                </div>
+            </div>
+
+            <!-- PANEL: MAGIC LINK -->
+            <div id="panel-magic" style="display: none;">
+                <h1>Acceso con enlace</h1>
+                <p class="subtitle">Recibirás un enlace de acceso directo en tu email (sin contraseña)</p>
+
+                <form id="form-magic" onsubmit="enviarMagicLink(event)">
+                    <div class="form-group">
+                        <label for="magic-email">Email institucional</label>
+                        <input type="email" id="magic-email" name="email" class="form-control" placeholder="tu.email@universidad.es" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-block">Enviar enlace de acceso</button>
+                </form>
+
+                <div style="margin-top: 20px; text-align: center;">
+                    <a href="#" onclick="mostrarPanel('login'); return false;" style="color: var(--azul-primario);">
+                        Volver al inicio de sesión
+                    </a>
+                </div>
+            </div>
+
+            <!-- Ayuda -->
+            <div style="margin-top: 20px; text-align: center;">
                 <p style="color: var(--gris-oscuro); font-size: 0.85rem;">
                     ¿No puedes acceder? <a href="../participar.html">Contacta con el equipo</a>
                 </p>

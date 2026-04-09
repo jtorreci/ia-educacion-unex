@@ -125,6 +125,17 @@ async function cargarConfigCentro(centroId) {
     }
 }
 
+// Función para generar código de invitación de asignatura (6 caracteres legibles)
+function generarCodigoInvitacion() {
+    // Excluye caracteres ambiguos: 0/O, 1/I/L
+    const chars = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+    let code = '';
+    for (let i = 0; i < 6; i++) {
+        code += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return code;
+}
+
 // Función para generar código anónimo
 async function generarCodigoAnonimo(email, asignaturaId) {
     const texto = SALT_ANONIMO + email.toLowerCase() + '_' + asignaturaId;
@@ -165,6 +176,10 @@ function verificarAuth(rolRequerido = null) {
     return new Promise((resolve, reject) => {
         auth.onAuthStateChanged(async (user) => {
             if (user) {
+                if (!user.emailVerified) {
+                    reject('Debes verificar tu email antes de acceder');
+                    return;
+                }
                 try {
                     const userDoc = await db.collection('usuarios').doc(user.email).get();
                     if (userDoc.exists) {

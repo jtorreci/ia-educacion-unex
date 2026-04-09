@@ -76,6 +76,7 @@ async function cargarAsignaturas() {
 }
 
 function renderAsignaturaCard(asig, numEstudiantes) {
+    const codigo = asig.codigoInvitacion || '—';
     return `
         <div class="form-card">
             <div style="display: flex; justify-content: space-between; align-items: start;">
@@ -88,15 +89,21 @@ function renderAsignaturaCard(asig, numEstudiantes) {
                 </span>
             </div>
 
-            <div style="display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap;">
+            <div style="display: flex; align-items: center; gap: 10px; margin-top: 15px; padding: 10px 15px; background: var(--gris-fondo); border-radius: 8px;">
+                <span style="color: var(--gris-oscuro); font-size: 0.85rem;">Código de invitación:</span>
+                <code style="font-size: 1.2rem; font-weight: 700; letter-spacing: 3px; color: var(--azul-primario);">${codigo}</code>
+                ${codigo !== '—' ? `<button onclick="copiarCodigo('${codigo}')" class="btn btn-sm btn-outline" style="padding: 3px 10px; font-size: 0.75rem;">Copiar</button>` : `<button onclick="generarCodigoParaAsignatura('${asig.id}')" class="btn btn-sm btn-outline" style="padding: 3px 10px; font-size: 0.75rem;">Generar</button>`}
+            </div>
+
+            <div style="display: flex; gap: 10px; margin-top: 15px; flex-wrap: wrap;">
                 <button onclick="gestionarEstudiantes('${asig.id}')" class="btn btn-sm btn-secondary">
-                    👥 Gestionar estudiantes
+                    Gestionar estudiantes
                 </button>
                 <button onclick="evaluarAsignatura('${asig.id}')" class="btn btn-sm btn-primary">
-                    ✅ Evaluar con rúbrica
+                    Evaluar con rúbrica
                 </button>
                 <button onclick="verProgresoAsignatura('${asig.id}')" class="btn btn-sm btn-outline">
-                    📊 Ver progreso
+                    Ver progreso
                 </button>
             </div>
         </div>
@@ -158,6 +165,7 @@ async function crearAsignatura(event) {
             curso: form.curso.value,
             esSimulacro: form.esSimulacro.checked,
             profesorEmail: currentUser.email,
+            codigoInvitacion: generarCodigoInvitacion(),
             fechaCreacion: firebase.firestore.FieldValue.serverTimestamp()
         };
         // Asociar al centro del profesor
@@ -183,34 +191,78 @@ async function gestionarEstudiantes(asignaturaId) {
     const estudiantesSnap = await db.collection('asignaturas').doc(asignaturaId).collection('estudiantes').get();
     const estudiantes = estudiantesSnap.docs.map(doc => ({ email: doc.id, ...doc.data() }));
 
+    const grupoACount = estudiantes.filter(e => e.grupo === 'A').length;
+    const grupoBCount = estudiantes.filter(e => e.grupo === 'B').length;
+    const sinGrupo = estudiantes.filter(e => !e.grupo).length;
+
     container.innerHTML = `
         <div class="form-card">
             <h2>Estudiantes de ${asig.nombre}</h2>
 
-            <div id="lista-estudiantes">
-                ${estudiantes.length === 0 ? '<p style="color: var(--gris-oscuro);">No hay estudiantes inscritos</p>' :
-                    estudiantes.map(e => `
-                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px; background: var(--gris-fondo); border-radius: 6px; margin-bottom: 8px;">
-                            <div>
-                                <strong>${e.nombre || e.email}</strong>
-                                <span style="color: var(--gris-oscuro); font-size: 0.85rem;"> - ${e.email}</span>
-                                <span style="background: ${e.grupo === 'A' ? '#e3f2fd' : '#f3e5f5'}; color: ${e.grupo === 'A' ? '#1565c0' : '#7b1fa2'}; padding: 2px 8px; border-radius: 10px; font-size: 0.75rem; margin-left: 8px;">Grupo ${e.grupo || '?'}</span>
-                            </div>
-                            <button onclick="eliminarEstudiante('${asignaturaId}', '${e.email}')" class="btn btn-sm" style="background: var(--rojo-error); color: white;">Eliminar</button>
-                        </div>
-                    `).join('')
-                }
-            </div>
+            ${estudiantes.length === 0 ? '<p style="color: var(--gris-oscuro);">No hay estudiantes inscritos</p>' : `
+                <div style="display: flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap;">
+                    <span style="background: #e3f2fd; color: #1565c0; padding: 5px 12px; border-radius: 12px; font-size: 0.85rem; font-weight: 600;">Grupo A: ${grupoACount}</span>
+                    <span style="background: #f3e5f5; color: #7b1fa2; padding: 5px 12px; border-radius: 12px; font-size: 0.85rem; font-weight: 600;">Grupo B: ${grupoBCount}</span>
+                    ${sinGrupo > 0 ? `<span style="background: #FFF3E0; color: #E65100; padding: 5px 12px; border-radius: 12px; font-size: 0.85rem; font-weight: 600;">Sin asignar: ${sinGrupo}</span>` : ''}
+                </div>
 
-            <h3 style="margin-top: 25px;">Añadir estudiantes</h3>
+                <div class="table-container">
+                    <table class="table" style="width: 100%;">
+                        <thead>
+                            <tr>
+                                <th style="text-align: left;">Estudiante</th>
+                                <th style="text-align: center; width: 80px;">Grupo A</th>
+                                <th style="text-align: center; width: 80px;">Grupo B</th>
+                                <th style="width: 90px;"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${estudiantes.map(e => {
+                                const bloqueado = e.grupo && (e.completado_pre || e.completado_reto1 || e.completado_reto2 || e.completado_post);
+                                return `
+                                <tr>
+                                    <td>
+                                        <strong>${e.nombre || e.email}</strong>
+                                        <span style="color: var(--gris-oscuro); font-size: 0.8rem; display: block;">${e.email}</span>
+                                    </td>
+                                    <td style="text-align: center;">
+                                        <input type="radio" name="grupo-${e.email}" value="A"
+                                            ${e.grupo === 'A' ? 'checked' : ''}
+                                            ${bloqueado ? 'disabled' : ''}
+                                            data-email="${e.email}">
+                                    </td>
+                                    <td style="text-align: center;">
+                                        <input type="radio" name="grupo-${e.email}" value="B"
+                                            ${e.grupo === 'B' ? 'checked' : ''}
+                                            ${bloqueado ? 'disabled' : ''}
+                                            data-email="${e.email}">
+                                    </td>
+                                    <td style="text-align: center;">
+                                        ${bloqueado
+                                            ? '<span style="color: var(--gris-medio); font-size: 0.75rem;" title="Bloqueado: el estudiante ya ha respondido cuestionarios">🔒</span>'
+                                            : `<button onclick="eliminarEstudiante('${asignaturaId}', '${e.email}')" class="btn btn-sm" style="background: var(--rojo-error); color: white; padding: 3px 8px; font-size: 0.75rem;">Eliminar</button>`
+                                        }
+                                    </td>
+                                </tr>`;
+                            }).join('')}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div style="margin-top: 15px;">
+                    <button onclick="guardarGrupos('${asignaturaId}')" class="btn btn-primary">Guardar asignación de grupos</button>
+                </div>
+            `}
+
+            <h3 style="margin-top: 30px;">Añadir estudiantes</h3>
             <form onsubmit="agregarEstudiantes(event, '${asignaturaId}')">
                 <div class="form-group">
                     <label>Emails de estudiantes (uno por línea)</label>
-                    <textarea name="emails" class="form-control" placeholder="estudiante1@alumnos.unex.es&#10;estudiante2@alumnos.unex.es" rows="5"></textarea>
+                    <textarea name="emails" class="form-control" placeholder="estudiante1@alumnos.unex.es&#10;estudiante2@alumnos.unex.es" rows="4"></textarea>
                 </div>
                 <div style="display: flex; gap: 15px;">
                     <button type="button" onclick="cargarAsignaturas()" class="btn btn-outline">Volver</button>
-                    <button type="submit" class="btn btn-primary">Añadir estudiantes</button>
+                    <button type="submit" class="btn btn-secondary">Añadir estudiantes</button>
                 </div>
             </form>
         </div>
@@ -242,44 +294,60 @@ async function agregarEstudiantes(event, asignaturaId) {
     }
 
     try {
-        // Contar grupos existentes para equilibrar
-        const existingSnap = await db.collection('asignaturas').doc(asignaturaId).collection('estudiantes').get();
-        let grupoACount = 0;
-        let grupoBCount = 0;
-        existingSnap.docs.forEach(doc => {
-            const data = doc.data();
-            if (data.grupo === 'A') grupoACount++;
-            else if (data.grupo === 'B') grupoBCount++;
-        });
+        const emailsOmitidos = [];
+        const emailsYaExistentes = [];
+        let añadidos = 0;
 
         for (const email of emails) {
-            // Asignar grupo alternando para mantener equilibrio
-            const grupo = grupoACount <= grupoBCount ? 'A' : 'B';
-            if (grupo === 'A') grupoACount++;
-            else grupoBCount++;
+            // Verificar si el usuario ya existe
+            const userDoc = await db.collection('usuarios').doc(email).get();
+            if (userDoc.exists) {
+                const rolExistente = userDoc.data().rol;
+                if (rolExistente === 'admin' || rolExistente === 'profesor') {
+                    emailsOmitidos.push(email + ' (' + rolExistente + ')');
+                    continue;
+                }
+                emailsYaExistentes.push(email);
+            }
+
+            // Verificar si ya está inscrito en esta asignatura
+            const yaInscrito = await db.collection('asignaturas').doc(asignaturaId)
+                .collection('estudiantes').doc(email).get();
+            if (yaInscrito.exists) continue;
 
             const codigoAnonimo = await generarCodigoAnonimo(email, asignaturaId);
 
-            const usuarioData = {
-                email,
-                rol: 'estudiante',
-                fechaRegistro: firebase.firestore.FieldValue.serverTimestamp()
-            };
-            if (currentCentro) {
-                usuarioData.centroId = currentCentro.id;
+            // Solo crear documento de usuario si no existe
+            if (!userDoc.exists) {
+                const usuarioData = {
+                    email,
+                    rol: 'estudiante',
+                    fechaRegistro: firebase.firestore.FieldValue.serverTimestamp()
+                };
+                if (currentCentro) {
+                    usuarioData.centroId = currentCentro.id;
+                }
+                await db.collection('usuarios').doc(email).set(usuarioData);
             }
 
-            await db.collection('usuarios').doc(email).set(usuarioData, { merge: true });
-
+            // Inscribir sin grupo (el profesor lo asignará después)
             await db.collection('asignaturas').doc(asignaturaId).collection('estudiantes').doc(email).set({
                 nombre: email.split('@')[0],
                 codigoAnonimo,
-                grupo,
+                grupo: null,
                 fechaInscripcion: firebase.firestore.FieldValue.serverTimestamp()
             });
+            añadidos++;
         }
 
-        mostrarMensaje(`${emails.length} estudiantes añadidos (Grupo A: ${grupoACount}, Grupo B: ${grupoBCount})`, 'success');
+        let msg = `${añadidos} estudiantes inscritos. Asigna los grupos desde "Gestionar estudiantes".`;
+        if (emailsYaExistentes.length > 0) {
+            msg += `<br><br>Ya registrados (inscritos en asignatura):<br>${emailsYaExistentes.join('<br>')}`;
+        }
+        if (emailsOmitidos.length > 0) {
+            msg += `<br><br>Omitidos por tener rol superior:<br>${emailsOmitidos.join('<br>')}`;
+        }
+        mostrarMensaje(msg, emailsOmitidos.length > 0 ? 'warning' : 'success');
         gestionarEstudiantes(asignaturaId);
 
     } catch (error) {
@@ -495,6 +563,61 @@ async function verProgresoAsignatura(asignaturaId) {
             </div>
         </div>
     `;
+}
+
+// Guardar asignación manual de grupos
+async function guardarGrupos(asignaturaId) {
+    const radios = document.querySelectorAll(`input[type="radio"][data-email]`);
+    const asignaciones = {};
+
+    // Recoger selecciones (solo las no deshabilitadas)
+    radios.forEach(radio => {
+        if (!radio.disabled && radio.checked) {
+            asignaciones[radio.dataset.email] = radio.value;
+        }
+    });
+
+    if (Object.keys(asignaciones).length === 0) {
+        mostrarMensaje('No hay cambios de grupo que guardar', 'info');
+        return;
+    }
+
+    try {
+        let actualizados = 0;
+        for (const [email, grupo] of Object.entries(asignaciones)) {
+            await db.collection('asignaturas').doc(asignaturaId)
+                .collection('estudiantes').doc(email)
+                .update({ grupo: grupo });
+            actualizados++;
+        }
+
+        mostrarMensaje(actualizados + ' grupos asignados correctamente', 'success');
+        gestionarEstudiantes(asignaturaId);
+
+    } catch (error) {
+        mostrarMensaje('Error: ' + error.message, 'error');
+    }
+}
+
+// Copiar código de invitación al portapapeles
+function copiarCodigo(codigo) {
+    navigator.clipboard.writeText(codigo).then(() => {
+        mostrarMensaje('Código copiado: ' + codigo, 'success');
+    }).catch(() => {
+        window.prompt('Copia este código:', codigo);
+    });
+}
+
+// Generar código para asignaturas existentes que no tengan uno
+async function generarCodigoParaAsignatura(asignaturaId) {
+    try {
+        const codigo = generarCodigoInvitacion();
+        await db.collection('asignaturas').doc(asignaturaId).update({ codigoInvitacion: codigo });
+        mostrarMensaje('Código generado: ' + codigo, 'success');
+        cargarAsignaturas();
+    } catch (error) {
+        mostrarMensaje('Error: ' + error.message, 'error');
+    }
 }
 
 document.addEventListener('DOMContentLoaded', initProfesorPanel);

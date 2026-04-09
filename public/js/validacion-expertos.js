@@ -11,11 +11,31 @@ const INSTRUMENTOS = [
         ],
         criterios: CRITERIOS_BASE,
         items: [
-            { codigo: 'PRE-01', texto: 'Frecuencia de uso previo de herramientas de IA generativa' },
-            { codigo: 'PRE-02', texto: 'Autopercepción de competencia en el uso de IA generativa' },
-            { codigo: 'PRE-03', texto: 'Actitud hacia el uso de IA en educación superior' },
-            { codigo: 'PRE-04', texto: 'Autopercepción de dominio de la materia antes del experimento' },
-            { codigo: 'PRE-05', texto: 'Experiencia previa con tareas similares a los retos del estudio' }
+            {
+                codigo: 'PRE-01',
+                texto: 'Frecuencia de uso previo de herramientas de IA generativa',
+                detalle: 'Pregunta de caracterización sobre la frecuencia con la que el estudiante usa ChatGPT, Copilot o herramientas similares antes del experimento.'
+            },
+            {
+                codigo: 'PRE-02',
+                texto: 'Autopercepción de competencia en el uso de IA generativa',
+                detalle: 'Ítem de autoevaluación para estimar hasta qué punto el estudiante considera que sabe formular prompts, interpretar respuestas y usar la IA con criterio.'
+            },
+            {
+                codigo: 'PRE-03',
+                texto: 'Actitud hacia el uso de IA en educación superior',
+                detalle: 'Bloque actitudinal sobre aceptación, utilidad percibida y predisposición a incorporar IA generativa en contextos universitarios.'
+            },
+            {
+                codigo: 'PRE-04',
+                texto: 'Autopercepción de dominio de la materia antes del experimento',
+                detalle: 'Pregunta basal para estimar la confianza del estudiante en su propio conocimiento disciplinar antes de resolver los retos.'
+            },
+            {
+                codigo: 'PRE-05',
+                texto: 'Experiencia previa con tareas similares a los retos del estudio',
+                detalle: 'Ítem sobre familiaridad previa con problemas, ejercicios o dinámicas comparables a las dos tareas que se usarán en el crossover.'
+            }
         ]
     },
     {
@@ -28,13 +48,41 @@ const INSTRUMENTOS = [
         ],
         criterios: CRITERIOS_BASE,
         items: [
-            { codigo: 'POSR-01', texto: 'Dificultad percibida del reto' },
-            { codigo: 'POSR-02', texto: 'Confianza en la solución entregada' },
-            { codigo: 'POSR-03', texto: 'Utilidad percibida de los recursos disponibles' },
-            { codigo: 'POSR-04', texto: 'Tiempo percibido como suficiente o insuficiente' },
-            { codigo: 'POSR-05', texto: 'En condición IA: utilidad de las respuestas generadas' },
-            { codigo: 'POSR-06', texto: 'En condición IA: grado de dependencia de la herramienta' },
-            { codigo: 'POSR-07', texto: 'En condición sin IA: percepción de desventaja por ausencia de la herramienta' }
+            {
+                codigo: 'POSR-01',
+                texto: 'Dificultad percibida del reto',
+                detalle: 'Valoración inmediata de cuán difícil ha resultado la tarea concreta justo después de completarla.'
+            },
+            {
+                codigo: 'POSR-02',
+                texto: 'Confianza en la solución entregada',
+                detalle: 'Ítem sobre seguridad subjetiva del estudiante respecto a la calidad o corrección de la respuesta que ha presentado.'
+            },
+            {
+                codigo: 'POSR-03',
+                texto: 'Utilidad percibida de los recursos disponibles',
+                detalle: 'Pregunta transversal para valorar si los recursos ofrecidos en cada condición han sido suficientes y realmente útiles para resolver el reto.'
+            },
+            {
+                codigo: 'POSR-04',
+                texto: 'Tiempo percibido como suficiente o insuficiente',
+                detalle: 'Ítem de ajuste temporal para detectar si la duración de la actividad condiciona el desempeño o la satisfacción con la tarea.'
+            },
+            {
+                codigo: 'POSR-05',
+                texto: 'En condición IA: utilidad de las respuestas generadas',
+                detalle: 'Pregunta específica de la condición con IA sobre el valor práctico de las respuestas ofrecidas por la herramienta durante la resolución.'
+            },
+            {
+                codigo: 'POSR-06',
+                texto: 'En condición IA: grado de dependencia de la herramienta',
+                detalle: 'Ítem para estimar si el estudiante usó la IA como apoyo puntual o como recurso central y difícilmente sustituible.'
+            },
+            {
+                codigo: 'POSR-07',
+                texto: 'En condición sin IA: percepción de desventaja por ausencia de la herramienta',
+                detalle: 'Pregunta espejo para detectar si, al trabajar sin IA, el estudiante siente que compite o aprende en peores condiciones.'
+            }
         ]
     },
     {
@@ -47,11 +95,31 @@ const INSTRUMENTOS = [
         ],
         criterios: CRITERIOS_BASE,
         items: [
-            { codigo: 'POST-01', texto: 'Preferencia global entre condición con IA y sin IA' },
-            { codigo: 'POST-02', texto: 'Percepción de apoyo al aprendizaje en cada condición' },
-            { codigo: 'POST-03', texto: 'Cambio de actitud hacia la IA tras completar ambos retos' },
-            { codigo: 'POST-04', texto: 'Pregunta abierta sobre influencia de la IA en el razonamiento' },
-            { codigo: 'POST-05', texto: 'Pregunta abierta sobre influencia de la IA en la confianza o el flujo de trabajo' }
+            {
+                codigo: 'POST-01',
+                texto: 'Preferencia global entre condición con IA y sin IA',
+                detalle: 'Comparación retrospectiva final para saber en qué modalidad preferiría trabajar el estudiante una vez vividas ambas experiencias.'
+            },
+            {
+                codigo: 'POST-02',
+                texto: 'Percepción de apoyo al aprendizaje en cada condición',
+                detalle: 'Ítem comparativo para estimar en cuál de las dos condiciones el estudiante siente haber aprendido más o mejor.'
+            },
+            {
+                codigo: 'POST-03',
+                texto: 'Cambio de actitud hacia la IA tras completar ambos retos',
+                detalle: 'Pregunta de cierre sobre posible cambio de percepción hacia la IA después de haberla usado y de haber trabajado también sin ella.'
+            },
+            {
+                codigo: 'POST-04',
+                texto: 'Pregunta abierta sobre influencia de la IA en el razonamiento',
+                detalle: 'Respuesta abierta destinada a recoger si la IA ayudó, entorpeció o transformó el modo de pensar el problema.'
+            },
+            {
+                codigo: 'POST-05',
+                texto: 'Pregunta abierta sobre influencia de la IA en la confianza o el flujo de trabajo',
+                detalle: 'Comentario final sobre cómo la IA afectó a la seguridad subjetiva del estudiante y a su manera de organizar el trabajo.'
+            }
         ]
     },
     {
@@ -64,10 +132,26 @@ const INSTRUMENTOS = [
         ],
         criterios: [...CRITERIOS_BASE, 'operatividad'],
         items: [
-            { codigo: 'RUB-01', texto: 'Corrección técnica' },
-            { codigo: 'RUB-02', texto: 'Profundidad del análisis' },
-            { codigo: 'RUB-03', texto: 'Calidad de la justificación' },
-            { codigo: 'RUB-04', texto: 'Presentación / comunicación de la solución' }
+            {
+                codigo: 'RUB-01',
+                texto: 'Corrección técnica',
+                detalle: 'Criterio para valorar si la solución es técnicamente correcta y respeta los conceptos, cálculos o procedimientos propios de la materia.'
+            },
+            {
+                codigo: 'RUB-02',
+                texto: 'Profundidad del análisis',
+                detalle: 'Evalúa el nivel de elaboración de la respuesta, su capacidad para ir más allá de lo superficial y su tratamiento razonado del problema.'
+            },
+            {
+                codigo: 'RUB-03',
+                texto: 'Calidad de la justificación',
+                detalle: 'Mide si el estudiante explica por qué propone una solución, con argumentos comprensibles y trazables.'
+            },
+            {
+                codigo: 'RUB-04',
+                texto: 'Presentación / comunicación de la solución',
+                detalle: 'Criterio sobre claridad expositiva, estructura de la respuesta y facilidad para que un docente siga el razonamiento presentado.'
+            }
         ]
     }
 ];
@@ -123,6 +207,7 @@ function renderTablaInstrumento(instrumento, datosPrevios) {
                 <td>
                     <strong>${item.codigo}</strong>
                     <div style="color: var(--gris-oscuro); font-size: 0.9rem; margin-top: 4px;">${item.texto}</div>
+                    <div style="color: var(--gris-medio); font-size: 0.82rem; line-height: 1.45; margin-top: 6px;">${item.detalle || ''}</div>
                 </td>
                 ${celdasCriterio}
                 <td>
@@ -140,7 +225,7 @@ function renderTablaInstrumento(instrumento, datosPrevios) {
                 <ul>
                     ${instrumento.objetivos.map((objetivo) => `<li>${objetivo}</li>`).join('')}
                 </ul>
-                <p class="mini-note">Escala recomendada: 1 = muy deficiente / no adecuado, 5 = muy adecuado. Añade comentarios siempre que detectes ambigüedad, redundancia o falta de ajuste al objetivo del estudio.</p>
+                <p class="mini-note">Cada ítem se resume con una glosa operativa para facilitar la valoración sin necesidad de tener delante el cuestionario completo. Escala recomendada: 1 = muy deficiente / no adecuado, 5 = muy adecuado. Añade comentarios siempre que detectes ambigüedad, redundancia o falta de ajuste al objetivo del estudio.</p>
             </div>
             <div class="table-container">
                 <table class="table">

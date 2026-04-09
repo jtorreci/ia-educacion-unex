@@ -27,9 +27,18 @@ service cloud.firestore {
       allow read: if request.auth != null && request.auth.token.email == email;
       allow read: if isAdmin();
       allow write: if isAdmin();
-      // Profesores pueden crear/actualizar documentos de estudiantes
-      allow create, update: if isProfesor() &&
-                              request.resource.data.rol == 'estudiante';
+      // Auto-registro: un usuario puede crear su propio documento como estudiante
+      allow create: if request.auth != null &&
+                      request.auth.token.email == email &&
+                      request.resource.data.rol == 'estudiante' &&
+                      request.resource.data.email == email;
+      // Profesores pueden crear estudiantes nuevos (no sobreescribir usuarios existentes)
+      allow create: if isProfesor() &&
+                      request.resource.data.rol == 'estudiante';
+      // Profesores pueden actualizar solo si el usuario YA era estudiante
+      allow update: if isProfesor() &&
+                      request.resource.data.rol == 'estudiante' &&
+                      resource.data.rol == 'estudiante';
     }
 
     // Profesores pueden leer la lista de usuarios (para verificar roles)
@@ -47,11 +56,12 @@ service cloud.firestore {
 
       // Estudiantes de la asignatura (subcolección)
       match /estudiantes/{estEmail} {
-        allow read: if request.auth != null &&
-                      (request.auth.token.email == estEmail ||
-                       isProfesor() ||
-                       isAdmin());
+        // Lectura: cualquier autenticado (necesario para conteo de grupos al inscribirse)
+        allow read: if request.auth != null;
         allow write: if isProfesor() || isAdmin();
+        // Auto-inscripción: un estudiante puede crear su propio documento de inscripción
+        allow create: if request.auth != null &&
+                        request.auth.token.email == estEmail;
         // Permitir a estudiantes actualizar su propio estado de completado
         allow update: if request.auth != null &&
                         request.auth.token.email == estEmail &&
