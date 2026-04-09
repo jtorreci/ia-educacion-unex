@@ -480,6 +480,28 @@ async function guardarRubrica(event, asignaturaId) {
     }
 }
 
+function renderAuditEstado(estudiante, sufijo, completado) {
+    if (!completado) return '<span style="color: var(--gris-medio);">⬜</span>';
+
+    const respondidas = estudiante[`audit_${sufijo}_respondidas`];
+    const total = estudiante[`audit_${sufijo}_total`];
+    const vacias = estudiante[`audit_${sufijo}_vacias`];
+    const fecha = estudiante[`audit_${sufijo}_fecha`];
+
+    if (typeof respondidas !== 'number' || typeof total !== 'number') {
+        return '<span style="color: var(--verde-primario);">✅ Enviado</span>';
+    }
+
+    const color = vacias > 0 ? 'var(--naranja-warning)' : 'var(--verde-primario)';
+    const detalleHuecos = vacias > 0 ? ` · ${vacias} en blanco` : ' · completo';
+    const detalleFecha = fecha ? `<div style="color: var(--gris-medio); font-size: 0.75rem;">${formatearFecha(fecha)}</div>` : '';
+
+    return `
+        <div style="color: ${color}; font-weight: 600;">${respondidas}/${total}${detalleHuecos}</div>
+        ${detalleFecha}
+    `;
+}
+
 // Ver progreso de cuestionarios por asignatura
 async function verProgresoAsignatura(asignaturaId) {
     const asig = asignaturas.find(a => a.id === asignaturaId);
@@ -531,6 +553,9 @@ async function verProgresoAsignatura(asignaturaId) {
             </div>
 
             <h3>Detalle por estudiante</h3>
+            <p style="color: var(--gris-oscuro); margin-bottom: 12px; font-size: 0.9rem;">
+                Las celdas muestran el número de ítems estructurados respondidos en cada cuestionario. No se expone el contenido de las respuestas.
+            </p>
             <div class="table-container">
                 <table class="table">
                     <thead>
@@ -548,10 +573,10 @@ async function verProgresoAsignatura(asignaturaId) {
                             <tr>
                                 <td>${e.nombre || e.email}</td>
                                 <td><span style="background: ${e.grupo === 'A' ? '#e3f2fd' : '#f3e5f5'}; color: ${e.grupo === 'A' ? '#1565c0' : '#7b1fa2'}; padding: 2px 8px; border-radius: 10px; font-size: 0.8rem;">${e.grupo || '?'}</span></td>
-                                <td>${e.completado_pre ? '✅' : '⬜'}</td>
-                                <td>${e.completado_reto1 ? '✅' : '⬜'}</td>
-                                <td>${e.completado_reto2 ? '✅' : '⬜'}</td>
-                                <td>${e.completado_post ? '✅' : '⬜'}</td>
+                                <td>${renderAuditEstado(e, 'pre', e.completado_pre)}</td>
+                                <td>${renderAuditEstado(e, 'reto1', e.completado_reto1)}</td>
+                                <td>${renderAuditEstado(e, 'reto2', e.completado_reto2)}</td>
+                                <td>${renderAuditEstado(e, 'post', e.completado_post)}</td>
                             </tr>
                         `).join('')}
                     </tbody>

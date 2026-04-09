@@ -203,6 +203,54 @@ function cargarFormulario(tipo, asignaturaId, numeroReto) {
     }
 }
 
+function estaRespondido(valor) {
+    if (Array.isArray(valor)) return valor.length > 0;
+    if (typeof valor === 'boolean') return valor;
+    return valor !== null && valor !== undefined && String(valor).trim() !== '';
+}
+
+function calcularResumenRespuestas(tipo, formData) {
+    const checks = [];
+
+    if (tipo === 'pre') {
+        checks.push(estaRespondido(formData.frecuencia_uso));
+        checks.push(formData.frecuencia_uso === 'nunca' || estaRespondido(formData.herramientas));
+        checks.push(estaRespondido(formData.actitud_util));
+        checks.push(estaRespondido(formData.actitud_dependencia));
+        checks.push(estaRespondido(formData.actitud_trampa));
+        checks.push(estaRespondido(formData.actitud_verificar));
+        checks.push(estaRespondido(formData.expectativa_resultado));
+    } else if (tipo === 'reto') {
+        checks.push(estaRespondido(formData.condicion));
+        checks.push(estaRespondido(formData.tiempo));
+        checks.push(estaRespondido(formData.dificultad));
+        checks.push(estaRespondido(formData.satisfaccion));
+        checks.push(estaRespondido(formData.aprendizaje));
+        checks.push(estaRespondido(formData.motivacion));
+
+        if (formData.condicion === 'con_ia') {
+            checks.push(estaRespondido(formData.consultas_ia));
+            checks.push(estaRespondido(formData.revision_ia));
+        }
+    } else if (tipo === 'post') {
+        checks.push(estaRespondido(formData.mejor_resultado));
+        checks.push(estaRespondido(formData.mas_aprendizaje));
+        checks.push(estaRespondido(formData.preferencia));
+        checks.push(estaRespondido(formData.reflexion_personal));
+        checks.push(estaRespondido(formData.consejo));
+        checks.push(estaRespondido(formData.utilidad));
+    }
+
+    const total = checks.length;
+    const respondidas = checks.filter(Boolean).length;
+
+    return {
+        total,
+        respondidas,
+        vacias: total - respondidas
+    };
+}
+
 // Guardar respuestas
 async function guardarRespuestas(tipo, formData) {
     const asignaturaId = sessionStorage.getItem('currentAsignaturaId');
@@ -256,11 +304,23 @@ async function guardarRespuestas(tipo, formData) {
         await db.collection(collection).add(datos);
 
         // Actualizar estado de completado en el documento de inscripción
+        const resumen = calcularResumenRespuestas(tipo, formData);
+        const sufijo = tipo === 'reto'
+            ? 'reto' + (datos.numeroReto || sessionStorage.getItem('currentNumeroReto'))
+            : tipo;
+        const actualizacionEstado = {
+            [campoCompletado]: true,
+            [`audit_${sufijo}_total`]: resumen.total,
+            [`audit_${sufijo}_respondidas`]: resumen.respondidas,
+            [`audit_${sufijo}_vacias`]: resumen.vacias,
+            [`audit_${sufijo}_fecha`]: firebase.firestore.FieldValue.serverTimestamp()
+        };
+
         await db.collection('asignaturas')
             .doc(asignaturaId)
             .collection('estudiantes')
             .doc(currentUser.email)
-            .update({ [campoCompletado]: true });
+            .update(actualizacionEstado);
 
         mostrarMensaje('Respuestas guardadas correctamente', 'success');
 

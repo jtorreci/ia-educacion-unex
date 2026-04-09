@@ -66,7 +66,13 @@ service cloud.firestore {
         allow update: if request.auth != null &&
                         request.auth.token.email == estEmail &&
                         request.resource.data.diff(resource.data).affectedKeys()
-                          .hasOnly(['completado_pre', 'completado_reto1', 'completado_reto2', 'completado_post']);
+                          .hasOnly([
+                            'completado_pre', 'completado_reto1', 'completado_reto2', 'completado_post',
+                            'audit_pre_total', 'audit_pre_respondidas', 'audit_pre_vacias', 'audit_pre_fecha',
+                            'audit_reto1_total', 'audit_reto1_respondidas', 'audit_reto1_vacias', 'audit_reto1_fecha',
+                            'audit_reto2_total', 'audit_reto2_respondidas', 'audit_reto2_vacias', 'audit_reto2_fecha',
+                            'audit_post_total', 'audit_post_respondidas', 'audit_post_vacias', 'audit_post_fecha'
+                          ]);
       }
     }
 
