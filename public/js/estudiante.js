@@ -392,7 +392,13 @@ async function guardarRespuestas(tipo, formData) {
             datos.profesorEmail = currentUser.email;
         }
 
-        await db.collection(collection).add(datos);
+        console.log('[diag] guardando respuesta', { collection, modoTest: MODO_TEST, datos });
+        try {
+            await db.collection(collection).add(datos);
+        } catch (e) {
+            console.error('[diag] FALLO en add(respuestas_*)', e);
+            throw e;
+        }
 
         // Actualizar estado de completado en el documento de inscripción
         const resumen = calcularResumenRespuestas(tipo, formData);
@@ -407,11 +413,22 @@ async function guardarRespuestas(tipo, formData) {
             [`audit_${sufijo}_fecha`]: firebase.firestore.FieldValue.serverTimestamp()
         };
 
-        await db.collection('asignaturas')
-            .doc(asignaturaId)
-            .collection(subcolEstudiantes())
-            .doc(currentUser.email)
-            .update(actualizacionEstado);
+        console.log('[diag] actualizando inscripción', {
+            subcoleccion: subcolEstudiantes(),
+            asignaturaId,
+            email: currentUser.email,
+            campos: Object.keys(actualizacionEstado)
+        });
+        try {
+            await db.collection('asignaturas')
+                .doc(asignaturaId)
+                .collection(subcolEstudiantes())
+                .doc(currentUser.email)
+                .update(actualizacionEstado);
+        } catch (e) {
+            console.error('[diag] FALLO en update(estudiantes_test)', e);
+            throw e;
+        }
 
         mostrarMensaje('Respuestas guardadas correctamente', 'success');
 
