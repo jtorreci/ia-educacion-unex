@@ -335,13 +335,27 @@ async function agregarProfesor(event) {
     }
 
     try {
+        // Verificar si el usuario ya existe con un rol que no se debe sobreescribir
+        const userDoc = await db.collection('usuarios').doc(email).get();
+        if (userDoc.exists) {
+            const rolExistente = userDoc.data().rol;
+            if (rolExistente === 'admin') {
+                mostrarMensaje('No se puede cambiar: ' + email + ' es administrador', 'error');
+                return;
+            }
+            if (rolExistente === 'profesor') {
+                mostrarMensaje(email + ' ya es profesor', 'warning');
+                return;
+            }
+        }
+
         await db.collection('usuarios').doc(email).set({
             email,
             nombre,
             rol: 'profesor',
             centroId,
             fechaRegistro: firebase.firestore.FieldValue.serverTimestamp()
-        });
+        }, { merge: true });
 
         mostrarMensaje('Profesor añadido correctamente', 'success');
         form.reset();
