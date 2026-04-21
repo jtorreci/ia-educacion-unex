@@ -24,6 +24,33 @@
         { "fieldPath": "asignaturaId", "order": "ASCENDING" },
         { "fieldPath": "numeroReto", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "respuestas_pre",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "esTest", "order": "ASCENDING" },
+        { "fieldPath": "asignaturaId", "order": "ASCENDING" },
+        { "fieldPath": "profesorEmail", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "respuestas_reto",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "esTest", "order": "ASCENDING" },
+        { "fieldPath": "asignaturaId", "order": "ASCENDING" },
+        { "fieldPath": "profesorEmail", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "respuestas_post",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "esTest", "order": "ASCENDING" },
+        { "fieldPath": "asignaturaId", "order": "ASCENDING" },
+        { "fieldPath": "profesorEmail", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

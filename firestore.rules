@@ -74,25 +74,67 @@ service cloud.firestore {
                             'audit_post_total', 'audit_post_respondidas', 'audit_post_vacias', 'audit_post_fecha'
                           ]);
       }
+
+      // Estudiantes de prueba (modo test del profesor) — paralelo a 'estudiantes'
+      // El profesor dueño se auto-inscribe para recorrer el flujo sin contaminar datos reales.
+      match /estudiantes_test/{estEmail} {
+        // Lectura: admin, o el profesor dueño de la asignatura, o el propio usuario test
+        allow read: if isAdmin() ||
+                      (request.auth != null && request.auth.token.email == estEmail) ||
+                      (isProfesor() &&
+                        get(/databases/$(database)/documents/asignaturas/$(asigId)).data.profesorEmail == request.auth.token.email);
+        // Creación: el propio usuario se inscribe como tester (solo él puede auto-crearse)
+        allow create: if request.auth != null &&
+                        request.auth.token.email == estEmail &&
+                        request.resource.data.esTest == true;
+        // Actualización/borrado: admin, el dueño de la asignatura, o el propio tester
+        allow update, delete: if isAdmin() ||
+                                (request.auth != null && request.auth.token.email == estEmail) ||
+                                (isProfesor() &&
+                                  get(/databases/$(database)/documents/asignaturas/$(asigId)).data.profesorEmail == request.auth.token.email);
+      }
     }
 
-    // Respuestas de cuestionarios - estudiantes escriben, solo admin lee
+    // Respuestas de cuestionarios - estudiantes escriben, solo admin lee el contenido real.
+    // Para modo prueba (esTest=true), el profesor dueño de la asignatura puede leer y borrar
+    // únicamente las respuestas marcadas como test y asociadas a él vía profesorEmail.
+    function isTeacherOwnTest(data) {
+      return isProfesor() &&
+             data.esTest == true &&
+             data.profesorEmail == request.auth.token.email;
+    }
+
+    // En creación test: exigimos coherencia (esTest true, profesorEmail = caller,
+    // y caller dueño de la asignatura indicada).
+    function validTestCreate() {
+      return request.resource.data.esTest == true &&
+             request.resource.data.profesorEmail == request.auth.token.email &&
+             isProfesor() &&
+             get(/databases/$(database)/documents/asignaturas/$(request.resource.data.asignaturaId)).data.profesorEmail == request.auth.token.email;
+    }
+
     match /respuestas_pre/{docId} {
-      allow create: if request.auth != null;
-      allow read: if isAdmin();
-      allow update, delete: if isAdmin();
+      allow create: if request.auth != null &&
+                      (request.resource.data.esTest != true || validTestCreate());
+      allow read: if isAdmin() || isTeacherOwnTest(resource.data);
+      allow update: if isAdmin();
+      allow delete: if isAdmin() || isTeacherOwnTest(resource.data);
     }
 
     match /respuestas_reto/{docId} {
-      allow create: if request.auth != null;
-      allow read: if isAdmin();
-      allow update, delete: if isAdmin();
+      allow create: if request.auth != null &&
+                      (request.resource.data.esTest != true || validTestCreate());
+      allow read: if isAdmin() || isTeacherOwnTest(resource.data);
+      allow update: if isAdmin();
+      allow delete: if isAdmin() || isTeacherOwnTest(resource.data);
     }
 
     match /respuestas_post/{docId} {
-      allow create: if request.auth != null;
-      allow read: if isAdmin();
-      allow update, delete: if isAdmin();
+      allow create: if request.auth != null &&
+                      (request.resource.data.esTest != true || validTestCreate());
+      allow read: if isAdmin() || isTeacherOwnTest(resource.data);
+      allow update: if isAdmin();
+      allow delete: if isAdmin() || isTeacherOwnTest(resource.data);
     }
 
     // Rúbricas - profesores escriben las de sus asignaturas, admin lee todas

@@ -4,10 +4,47 @@ let currentUser = null;
 let currentUserData = null;
 let inscripciones = [];
 
+// Modo prueba: el profesor recorre el flujo como si fuera estudiante.
+// Activa si la URL contiene ?test=<asignaturaId>. En ese modo se usa la
+// subcolección estudiantes_test y las respuestas llevan esTest:true.
+const TEST_ASIG_ID = (() => {
+    try {
+        const p = new URLSearchParams(window.location.search);
+        const v = p.get('test');
+        return v ? v.trim() : null;
+    } catch (e) { return null; }
+})();
+const MODO_TEST = !!TEST_ASIG_ID;
+
+function subcolEstudiantes() {
+    return MODO_TEST ? 'estudiantes_test' : 'estudiantes';
+}
+
+function salirModoPrueba() {
+    window.location.href = 'profesor.html';
+}
+
+function renderBannerPrueba() {
+    if (!MODO_TEST) return '';
+    return `
+        <div id="banner-modo-prueba" style="position: sticky; top: 0; z-index: 50; background: var(--naranja-warning); color: white; padding: 12px 20px; border-radius: 0 0 10px 10px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; box-shadow: 0 2px 6px rgba(0,0,0,0.15);">
+            <div>
+                <strong>🧪 Modo prueba activo.</strong>
+                Estas respuestas quedan marcadas como prueba y no forman parte del estudio.
+            </div>
+            <button onclick="salirModoPrueba()" class="btn btn-sm" style="background: white; color: var(--naranja-warning); font-weight: 700;">
+                ← Salir del modo prueba
+            </button>
+        </div>
+    `;
+}
+
 // Inicializar panel de estudiante
 async function initEstudiantePanel() {
     try {
-        const { user, userData } = await verificarAuth('estudiante');
+        // En modo test, el profesor dueño también puede entrar (admin ya pasa por el segundo OR).
+        const rolRequerido = MODO_TEST ? 'profesor' : 'estudiante';
+        const { user, userData } = await verificarAuth(rolRequerido);
         currentUser = user;
         currentUserData = userData;
 
@@ -16,59 +53,87 @@ async function initEstudiantePanel() {
         document.getElementById('user-email').textContent = user.email;
         document.getElementById('user-avatar').textContent = (userData.nombre || user.email).charAt(0).toUpperCase();
 
-        // Cargar inscripciones (asignaturas del estudiante)
+        // Insertar banner de modo prueba en la parte superior del contenido
+        if (MODO_TEST) {
+            const bannerHost = document.getElementById('mensaje-container');
+            if (bannerHost) bannerHost.insertAdjacentHTML('beforebegin', renderBannerPrueba());
+        }
+
+        // Cargar inscripciones (asignaturas del estudiante, o la de test)
         await cargarInscripciones();
 
     } catch (error) {
         console.error('Error:', error);
         mostrarMensaje(error, 'error');
         setTimeout(() => {
-            window.location.href = 'login.html';
+            window.location.href = MODO_TEST ? 'profesor.html' : 'login.html';
         }, 2000);
     }
 }
 
-// Cargar asignaturas en las que está inscrito el estudiante
+// Cargar asignaturas en las que está inscrito el estudiante (o la asignatura de test)
 async function cargarInscripciones() {
     const container = document.getElementById('asignaturas-container');
     container.innerHTML = '<p>Cargando asignaturas...</p>';
 
     try {
-        // Buscar en todas las asignaturas si este estudiante está inscrito
-        const asignaturasSnapshot = await db.collection('asignaturas').get();
         inscripciones = [];
 
-        for (const asigDoc of asignaturasSnapshot.docs) {
-            const estudianteDoc = await db.collection('asignaturas')
-                .doc(asigDoc.id)
-                .collection('estudiantes')
-                .doc(currentUser.email)
-                .get();
+        if (MODO_TEST) {
+            // Solo la asignatura indicada en la URL, leyendo inscripción desde estudiantes_test
+            const asigRef = db.collection('asignaturas').doc(TEST_ASIG_ID);
+            const [asigDoc, estDoc] = await Promise.all([
+                asigRef.get(),
+                asigRef.collection('estudiantes_test').doc(currentUser.email).get()
+            ]);
+            if (!asigDoc.exists) {
+                container.innerHTML = '<div class="alert alert-error">Asignatura no encontrada.</div>';
+                return;
+            }
+            if (!estDoc.exists) {
+                container.innerHTML = '<div class="alert alert-warning">No hay inscripción de prueba activa. Vuelve al panel de profesor y pulsa "Probar flujo".</div>';
+                return;
+            }
+            inscripciones.push({
+                asignaturaId: asigDoc.id,
+                asignatura: asigDoc.data(),
+                estudiante: estDoc.data()
+            });
+        } else {
+            // Flujo real: buscar en todas las asignaturas si este estudiante está inscrito
+            const asignaturasSnapshot = await db.collection('asignaturas').get();
+            for (const asigDoc of asignaturasSnapshot.docs) {
+                const estudianteDoc = await db.collection('asignaturas')
+                    .doc(asigDoc.id)
+                    .collection('estudiantes')
+                    .doc(currentUser.email)
+                    .get();
 
-            if (estudianteDoc.exists) {
-                inscripciones.push({
-                    asignaturaId: asigDoc.id,
-                    asignatura: asigDoc.data(),
-                    estudiante: estudianteDoc.data()
-                });
+                if (estudianteDoc.exists) {
+                    inscripciones.push({
+                        asignaturaId: asigDoc.id,
+                        asignatura: asigDoc.data(),
+                        estudiante: estudianteDoc.data()
+                    });
+                }
             }
         }
 
+        // En modo test no mostramos formulario de unirse (el profesor ya está inscrito)
+        let html = MODO_TEST ? '' : renderFormUnirse();
+
         if (inscripciones.length === 0) {
-            container.innerHTML = `
-                <div class="alert alert-warning">
-                    No estás inscrito en ninguna asignatura del proyecto.<br>
-                    Si crees que deberías estarlo, contacta con tu profesor.
+            html += `
+                <div class="alert alert-info" style="margin-top: 20px;">
+                    No estás inscrito en ninguna asignatura.<br>
+                    Introduce el código de invitación que te ha proporcionado tu profesor.
                 </div>
             `;
-            return;
-        }
-
-        // Mostrar asignaturas y estado de cuestionarios
-        let html = '';
-        for (const insc of inscripciones) {
-            const estado = await obtenerEstadoCuestionarios(insc.asignaturaId, insc.estudiante.codigoAnonimo);
-            html += renderAsignaturaCard(insc, estado);
+        } else {
+            for (const insc of inscripciones) {
+                const estado = await obtenerEstadoCuestionarios(insc.asignaturaId, insc.estudiante.codigoAnonimo);
+                html += renderAsignaturaCard(insc, estado);
+            }
         }
         container.innerHTML = html;
 
@@ -90,7 +155,7 @@ async function obtenerEstadoCuestionarios(asignaturaId, codigoAnonimo) {
     try {
         const estudianteDoc = await db.collection('asignaturas')
             .doc(asignaturaId)
-            .collection('estudiantes')
+            .collection(subcolEstudiantes())
             .doc(currentUser.email)
             .get();
 
@@ -110,6 +175,26 @@ async function obtenerEstadoCuestionarios(asignaturaId, codigoAnonimo) {
 
 // Renderizar tarjeta de asignatura
 function renderAsignaturaCard(insc, estado) {
+    const grupo = insc.estudiante.grupo;
+
+    // Si no tiene grupo asignado, mostrar mensaje de espera
+    if (!grupo) {
+        return `
+            <div class="form-card">
+                <h2>${insc.asignatura.nombre}</h2>
+                <p style="color: var(--gris-oscuro);">
+                    ${insc.asignatura.titulacion} · ${insc.asignatura.curso}
+                    ${insc.asignatura.esSimulacro ? '<span style="color: var(--naranja-warning);"> (Simulacro)</span>' : ''}
+                </p>
+                <div class="alert alert-info" style="margin-top: 15px;">
+                    <strong>Pendiente de asignación de grupo.</strong><br>
+                    Tu profesor te asignará a un grupo (A o B) próximamente.
+                    Una vez asignado, podrás completar los cuestionarios del estudio.
+                </div>
+            </div>
+        `;
+    }
+
     const completados = [estado.pre, estado.reto1, estado.reto2, estado.post].filter(Boolean).length;
     const porcentaje = (completados / 4) * 100;
 
@@ -119,7 +204,7 @@ function renderAsignaturaCard(insc, estado) {
             <p style="color: var(--gris-oscuro); margin-bottom: 20px;">
                 ${insc.asignatura.titulacion} · ${insc.asignatura.curso}
                 ${insc.asignatura.esSimulacro ? '<span style="color: var(--naranja-warning);"> (Simulacro)</span>' : ''}
-                ${insc.estudiante.grupo ? '<br><span style="background: ' + (insc.estudiante.grupo === 'A' ? '#e3f2fd' : '#f3e5f5') + '; color: ' + (insc.estudiante.grupo === 'A' ? '#1565c0' : '#7b1fa2') + '; padding: 3px 10px; border-radius: 10px; font-size: 0.85rem; font-weight: 600;">Grupo ' + insc.estudiante.grupo + ' — Reto 1: ' + (insc.estudiante.grupo === 'A' ? 'SIN IA' : 'CON IA') + ' · Reto 2: ' + (insc.estudiante.grupo === 'A' ? 'CON IA' : 'SIN IA') + '</span>' : ''}
+                <br><span style="background: ${grupo === 'A' ? '#e3f2fd' : '#f3e5f5'}; color: ${grupo === 'A' ? '#1565c0' : '#7b1fa2'}; padding: 3px 10px; border-radius: 10px; font-size: 0.85rem; font-weight: 600;">Grupo ${grupo} — Reto 1: ${grupo === 'A' ? 'SIN IA' : 'CON IA'} · Reto 2: ${grupo === 'A' ? 'CON IA' : 'SIN IA'}</span>
             </p>
 
             <div style="background: var(--gris-claro); border-radius: 20px; height: 10px; margin-bottom: 20px;">
@@ -273,7 +358,7 @@ async function guardarRespuestas(tipo, formData) {
         // Verificar si ya fue completado (protección contra duplicados)
         const estudianteDoc = await db.collection('asignaturas')
             .doc(asignaturaId)
-            .collection('estudiantes')
+            .collection(subcolEstudiantes())
             .doc(currentUser.email)
             .get();
 
@@ -301,6 +386,12 @@ async function guardarRespuestas(tipo, formData) {
                 break;
         }
 
+        // Marcado de prueba: las reglas exigen esTest + profesorEmail coherentes.
+        if (MODO_TEST) {
+            datos.esTest = true;
+            datos.profesorEmail = currentUser.email;
+        }
+
         await db.collection(collection).add(datos);
 
         // Actualizar estado de completado en el documento de inscripción
@@ -318,7 +409,7 @@ async function guardarRespuestas(tipo, formData) {
 
         await db.collection('asignaturas')
             .doc(asignaturaId)
-            .collection('estudiantes')
+            .collection(subcolEstudiantes())
             .doc(currentUser.email)
             .update(actualizacionEstado);
 
@@ -706,6 +797,84 @@ function submitFormPost(event) {
         utilidad: form.utilidad?.value || ''
     };
     guardarRespuestas('post', formData);
+}
+
+// Formulario para unirse a una asignatura con código de invitación
+function renderFormUnirse() {
+    return `
+        <div class="form-card" style="margin-bottom: 20px;">
+            <h3>Unirse a una asignatura</h3>
+            <form onsubmit="unirseConCodigo(event)" style="display: flex; gap: 10px; align-items: end; flex-wrap: wrap;">
+                <div class="form-group" style="flex: 1; min-width: 200px; margin-bottom: 0;">
+                    <label>Código de invitación</label>
+                    <input type="text" id="codigo-invitacion" class="form-control"
+                           placeholder="Ej: A3X7K9" maxlength="6"
+                           style="text-transform: uppercase; letter-spacing: 3px; font-weight: 600; font-size: 1.1rem;">
+                </div>
+                <button type="submit" class="btn btn-primary" style="height: 44px;">Unirse</button>
+            </form>
+        </div>
+    `;
+}
+
+// Inscribirse en una asignatura usando código de invitación
+async function unirseConCodigo(event) {
+    event.preventDefault();
+    const codigo = document.getElementById('codigo-invitacion').value.trim().toUpperCase();
+
+    if (!codigo || codigo.length !== 6) {
+        mostrarMensaje('Introduce un código de 6 caracteres', 'error');
+        return;
+    }
+
+    try {
+        // Buscar asignatura por código
+        const snapshot = await db.collection('asignaturas')
+            .where('codigoInvitacion', '==', codigo)
+            .get();
+
+        if (snapshot.empty) {
+            mostrarMensaje('Código no válido. Verifica con tu profesor.', 'error');
+            return;
+        }
+
+        const asigDoc = snapshot.docs[0];
+        const asigData = asigDoc.data();
+
+        // Verificar si ya está inscrito
+        const yaInscrito = await db.collection('asignaturas')
+            .doc(asigDoc.id)
+            .collection('estudiantes')
+            .doc(currentUser.email)
+            .get();
+
+        if (yaInscrito.exists) {
+            mostrarMensaje('Ya estás inscrito en ' + asigData.nombre, 'warning');
+            return;
+        }
+
+        // Generar código anónimo e inscribir (sin grupo, lo asigna el profesor)
+        const codigoAnonimo = await generarCodigoAnonimo(currentUser.email, asigDoc.id);
+
+        await db.collection('asignaturas')
+            .doc(asigDoc.id)
+            .collection('estudiantes')
+            .doc(currentUser.email)
+            .set({
+                nombre: currentUserData.nombre || currentUser.email.split('@')[0],
+                codigoAnonimo,
+                grupo: null,
+                fechaInscripcion: firebase.firestore.FieldValue.serverTimestamp()
+            });
+
+        mostrarMensaje('Inscrito en ' + asigData.nombre + '. Tu profesor te asignará un grupo próximamente.', 'success');
+        document.getElementById('codigo-invitacion').value = '';
+        await cargarInscripciones();
+
+    } catch (error) {
+        console.error('Error al inscribirse:', error);
+        mostrarMensaje('Error: ' + error.message, 'error');
+    }
 }
 
 // Inicializar cuando cargue la página

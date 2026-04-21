@@ -106,8 +106,113 @@ function renderAsignaturaCard(asig, numEstudiantes) {
                     Ver progreso
                 </button>
             </div>
+
+            <div style="margin-top: 15px; padding: 12px 15px; background: #FFF8E1; border: 1px dashed var(--naranja-warning); border-radius: 8px;">
+                <div style="font-size: 0.85rem; color: var(--gris-oscuro); margin-bottom: 8px;">
+                    <strong>Modo prueba:</strong> recorre el flujo como si fueras un estudiante. Las respuestas quedan separadas de los datos reales.
+                </div>
+                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                    <button onclick="iniciarModoPrueba('${asig.id}')" class="btn btn-sm" style="background: var(--naranja-warning); color: white;">
+                        ▶ Probar flujo como estudiante
+                    </button>
+                    <button onclick="verResultadosPrueba('${asig.id}')" class="btn btn-sm btn-outline">
+                        Ver mis respuestas de prueba
+                    </button>
+                    <button onclick="reiniciarPrueba('${asig.id}')" class="btn btn-sm btn-outline" style="color: var(--rojo-error); border-color: var(--rojo-error);">
+                        Reiniciar prueba
+                    </button>
+                </div>
+            </div>
         </div>
     `;
+}
+
+// Iniciar modo prueba: auto-inscribirse en estudiantes_test y abrir el panel de estudiante
+async function iniciarModoPrueba(asignaturaId) {
+    const asig = asignaturas.find(a => a.id === asignaturaId);
+    if (!asig) return;
+
+    // Pedir grupo para probar (el profesor elige con qué condición recorrer el flujo)
+    const grupoElegido = window.prompt(
+        'Elige el grupo con el que quieres recorrer el flujo de prueba:\n\n' +
+        'A → Reto 1 SIN IA, Reto 2 CON IA\n' +
+        'B → Reto 1 CON IA, Reto 2 SIN IA\n\n' +
+        'Escribe A o B:',
+        'A'
+    );
+    if (!grupoElegido) return;
+    const grupo = grupoElegido.trim().toUpperCase();
+    if (grupo !== 'A' && grupo !== 'B') {
+        mostrarMensaje('Grupo no válido. Usa A o B.', 'error');
+        return;
+    }
+
+    try {
+        const email = currentUser.email;
+        const ref = db.collection('asignaturas').doc(asignaturaId)
+            .collection('estudiantes_test').doc(email);
+        const doc = await ref.get();
+
+        if (!doc.exists) {
+            const codigoAnonimo = await generarCodigoAnonimo('TEST_' + email, asignaturaId);
+            await ref.set({
+                nombre: (currentUserData.nombre || email.split('@')[0]) + ' (prueba)',
+                email,
+                codigoAnonimo,
+                grupo,
+                esTest: true,
+                profesorEmail: email,
+                rolOriginal: 'profesor',
+                fechaInscripcion: firebase.firestore.FieldValue.serverTimestamp()
+            });
+        } else if (doc.data().grupo !== grupo) {
+            // Permitir cambiar de grupo si aún no se ha completado nada
+            const d = doc.data();
+            if (d.completado_pre || d.completado_reto1 || d.completado_reto2 || d.completado_post) {
+                mostrarMensaje('Ya hay respuestas de prueba registradas. Reinicia la prueba para cambiar de grupo.', 'warning');
+                return;
+            }
+            await ref.update({ grupo });
+        }
+
+        window.location.href = 'estudiante.html?test=' + encodeURIComponent(asignaturaId);
+    } catch (error) {
+        console.error(error);
+        mostrarMensaje('Error iniciando modo prueba: ' + error.message, 'error');
+    }
+}
+
+// Reiniciar prueba: borrar inscripción test y respuestas asociadas de este profesor
+async function reiniciarPrueba(asignaturaId) {
+    if (!confirm('¿Seguro? Se eliminarán la inscripción de prueba y todas tus respuestas de prueba en esta asignatura.')) return;
+
+    try {
+        const email = currentUser.email;
+
+        // Borrar respuestas de este profesor en esta asignatura (esTest=true)
+        const colecciones = ['respuestas_pre', 'respuestas_reto', 'respuestas_post'];
+        let borradas = 0;
+        for (const col of colecciones) {
+            const snap = await db.collection(col)
+                .where('esTest', '==', true)
+                .where('asignaturaId', '==', asignaturaId)
+                .where('profesorEmail', '==', email)
+                .get();
+            for (const d of snap.docs) {
+                await d.ref.delete();
+                borradas++;
+            }
+        }
+
+        // Borrar inscripción test
+        await db.collection('asignaturas').doc(asignaturaId)
+            .collection('estudiantes_test').doc(email).delete();
+
+        mostrarMensaje(`Prueba reiniciada (${borradas} respuestas eliminadas).`, 'success');
+    } catch (error) {
+        console.error(error);
+        mostrarMensaje('Error reiniciando prueba: ' + error.message, 'error');
+    }
 }
 
 // Mostrar formulario de nueva asignatura
@@ -643,6 +748,87 @@ async function generarCodigoParaAsignatura(asignaturaId) {
     } catch (error) {
         mostrarMensaje('Error: ' + error.message, 'error');
     }
+}
+
+// Ver respuestas de prueba del propio profesor en esta asignatura
+async function verResultadosPrueba(asignaturaId) {
+    const asig = asignaturas.find(a => a.id === asignaturaId);
+    const container = document.getElementById('asignaturas-container');
+    container.innerHTML = '<div class="loading-container"><div class="spinner"></div><p>Cargando respuestas de prueba...</p></div>';
+
+    try {
+        const email = currentUser.email;
+        const [preSnap, retoSnap, postSnap, inscDoc] = await Promise.all([
+            db.collection('respuestas_pre')
+                .where('esTest', '==', true)
+                .where('asignaturaId', '==', asignaturaId)
+                .where('profesorEmail', '==', email).get(),
+            db.collection('respuestas_reto')
+                .where('esTest', '==', true)
+                .where('asignaturaId', '==', asignaturaId)
+                .where('profesorEmail', '==', email).get(),
+            db.collection('respuestas_post')
+                .where('esTest', '==', true)
+                .where('asignaturaId', '==', asignaturaId)
+                .where('profesorEmail', '==', email).get(),
+            db.collection('asignaturas').doc(asignaturaId)
+                .collection('estudiantes_test').doc(email).get()
+        ]);
+
+        const insc = inscDoc.exists ? inscDoc.data() : null;
+        const pre = preSnap.docs.map(d => d.data());
+        const retos = retoSnap.docs.map(d => d.data()).sort((a, b) => (a.numeroReto || 0) - (b.numeroReto || 0));
+        const post = postSnap.docs.map(d => d.data());
+
+        container.innerHTML = `
+            <div class="form-card">
+                <h2>Respuestas de prueba — ${asig.nombre}</h2>
+                <p style="color: var(--gris-oscuro);">Solo se muestran las respuestas con <code>esTest: true</code> generadas por ti.</p>
+
+                ${insc ? `
+                    <div class="alert alert-info" style="margin-top: 15px;">
+                        Inscripción de prueba · Grupo <strong>${insc.grupo || '?'}</strong> ·
+                        PRE: ${insc.completado_pre ? '✅' : '⬜'} ·
+                        R1: ${insc.completado_reto1 ? '✅' : '⬜'} ·
+                        R2: ${insc.completado_reto2 ? '✅' : '⬜'} ·
+                        POST: ${insc.completado_post ? '✅' : '⬜'}
+                    </div>
+                ` : '<div class="alert alert-warning">No hay inscripción de prueba todavía.</div>'}
+
+                ${renderBloqueRespuestas('Cuestionario PRE', pre)}
+                ${renderBloqueRespuestas('Encuesta Reto 1', retos.filter(r => r.numeroReto === 1))}
+                ${renderBloqueRespuestas('Encuesta Reto 2', retos.filter(r => r.numeroReto === 2))}
+                ${renderBloqueRespuestas('Cuestionario POST', post)}
+
+                <div style="display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap;">
+                    <button onclick="cargarAsignaturas()" class="btn btn-outline">Volver</button>
+                    <button onclick="iniciarModoPrueba('${asignaturaId}')" class="btn btn-secondary">Reanudar prueba</button>
+                    <button onclick="reiniciarPrueba('${asignaturaId}').then(() => cargarAsignaturas())" class="btn" style="color: var(--rojo-error); border-color: var(--rojo-error);">Reiniciar prueba</button>
+                </div>
+            </div>
+        `;
+    } catch (error) {
+        console.error(error);
+        container.innerHTML = `<div class="alert alert-error">Error cargando respuestas de prueba: ${error.message}</div>`;
+    }
+}
+
+function renderBloqueRespuestas(titulo, docs) {
+    if (!docs || docs.length === 0) {
+        return `<h3 style="margin-top: 20px;">${titulo}</h3><p style="color: var(--gris-medio);">Sin respuestas aún.</p>`;
+    }
+    return docs.map(d => `
+        <h3 style="margin-top: 20px;">${titulo}${d.numeroReto ? ' (Reto ' + d.numeroReto + (d.condicion ? ' · ' + (d.condicion === 'con_ia' ? 'CON IA' : 'SIN IA') : '') + ')' : ''}</h3>
+        <p style="color: var(--gris-oscuro); font-size: 0.85rem;">${d.fecha ? formatearFecha(d.fecha) : ''}</p>
+        <div style="background: var(--gris-fondo); padding: 12px 15px; border-radius: 8px; font-family: ui-monospace, monospace; font-size: 0.85rem; white-space: pre-wrap; overflow-x: auto;">${escaparHtml(JSON.stringify(d.respuestas || {}, null, 2))}</div>
+    `).join('');
+}
+
+function escaparHtml(str) {
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
 }
 
 document.addEventListener('DOMContentLoaded', initProfesorPanel);
