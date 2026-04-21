@@ -105,12 +105,12 @@ service cloud.firestore {
     }
 
     // En creación test: exigimos coherencia (esTest true, profesorEmail = caller,
-    // y caller es profesor). La pertenencia a la asignatura se materializa en
-    // el propio profesorEmail, que es la clave usada luego para filtrar/leer.
+    // y caller es profesor o admin). La pertenencia a la asignatura se materializa
+    // en el propio profesorEmail, que es la clave usada luego para filtrar/leer.
     function validTestCreate() {
       return request.resource.data.esTest == true &&
              request.resource.data.profesorEmail == request.auth.token.email &&
-             isProfesor();
+             (isProfesor() || isAdmin());
     }
 
     match /respuestas_pre/{docId} {

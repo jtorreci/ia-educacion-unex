@@ -393,6 +393,21 @@ async function guardarRespuestas(tipo, formData) {
         }
 
         console.log('[diag] guardando respuesta', { collection, modoTest: MODO_TEST, datos });
+        if (MODO_TEST) {
+            try {
+                const userDoc = await db.collection('usuarios').doc(currentUser.email).get();
+                console.log('[diag] perfil del caller', {
+                    authEmail: currentUser.email,
+                    docId: currentUser.email,
+                    docExiste: userDoc.exists,
+                    rol: userDoc.exists ? userDoc.data().rol : null,
+                    datos_profesorEmail: datos.profesorEmail,
+                    match_email: datos.profesorEmail === currentUser.email
+                });
+            } catch (e) {
+                console.warn('[diag] no pude leer usuarios doc', e);
+            }
+        }
         try {
             await db.collection(collection).add(datos);
         } catch (e) {
