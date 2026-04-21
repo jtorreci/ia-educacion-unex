@@ -15,6 +15,9 @@ ui-debug.log
 # Firebase Admin SDK keys (NEVER commit)
 *-firebase-adminsdk-*.json
 
+# Firestore data backups (contain real user data)
+backup-firestore-*.json
+
 # IDE
 .idea/
 .vscode/
