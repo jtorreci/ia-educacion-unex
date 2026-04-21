@@ -86,7 +86,7 @@ service cloud.firestore {
         // Creación: el propio usuario se inscribe como tester (solo él puede auto-crearse)
         allow create: if request.auth != null &&
                         request.auth.token.email == estEmail &&
-                        request.resource.data.esTest == true;
+                        request.resource.data.get('esTest', false) == true;
         // Actualización/borrado: admin, el dueño de la asignatura, o el propio tester
         allow update, delete: if isAdmin() ||
                                 (request.auth != null && request.auth.token.email == estEmail) ||
@@ -98,24 +98,33 @@ service cloud.firestore {
     // Respuestas de cuestionarios - estudiantes escriben, solo admin lee el contenido real.
     // Para modo prueba (esTest=true), el profesor dueño de la asignatura puede leer y borrar
     // únicamente las respuestas marcadas como test y asociadas a él vía profesorEmail.
+    // NOTA: usamos data.get('campo', default) para tolerar docs sin el flag esTest
+    // (estudiantes reales) — la forma directa .campo arroja error de evaluación si el
+    // campo no existe, lo que denegaba todos los create de estudiantes.
     function isTeacherOwnTest(data) {
-      return isProfesor() &&
-             data.esTest == true &&
-             data.profesorEmail == request.auth.token.email;
+      return (isProfesor() || isAdmin()) &&
+             data.get('esTest', false) == true &&
+             data.get('profesorEmail', '') == request.auth.token.email;
     }
 
     // En creación test: exigimos coherencia (esTest true, profesorEmail = caller,
     // y caller es profesor o admin). La pertenencia a la asignatura se materializa
     // en el propio profesorEmail, que es la clave usada luego para filtrar/leer.
     function validTestCreate() {
-      return request.resource.data.esTest == true &&
-             request.resource.data.profesorEmail == request.auth.token.email &&
+      return request.resource.data.get('esTest', false) == true &&
+             request.resource.data.get('profesorEmail', '') == request.auth.token.email &&
              (isProfesor() || isAdmin());
+    }
+
+    // El caller está haciendo un create NO-test (estudiante real). Pasa si no hay
+    // flag esTest o está explícitamente en false.
+    function isRealCreate() {
+      return request.resource.data.get('esTest', false) != true;
     }
 
     match /respuestas_pre/{docId} {
       allow create: if request.auth != null &&
-                      (request.resource.data.esTest != true || validTestCreate());
+                      (isRealCreate() || validTestCreate());
       allow read: if isAdmin() || isTeacherOwnTest(resource.data);
       allow update: if isAdmin();
       allow delete: if isAdmin() || isTeacherOwnTest(resource.data);
@@ -123,7 +132,7 @@ service cloud.firestore {
 
     match /respuestas_reto/{docId} {
       allow create: if request.auth != null &&
-                      (request.resource.data.esTest != true || validTestCreate());
+                      (isRealCreate() || validTestCreate());
       allow read: if isAdmin() || isTeacherOwnTest(resource.data);
       allow update: if isAdmin();
       allow delete: if isAdmin() || isTeacherOwnTest(resource.data);
@@ -131,7 +140,7 @@ service cloud.firestore {
 
     match /respuestas_post/{docId} {
       allow create: if request.auth != null &&
-                      (request.resource.data.esTest != true || validTestCreate());
+                      (isRealCreate() || validTestCreate());
       allow read: if isAdmin() || isTeacherOwnTest(resource.data);
       allow update: if isAdmin();
       allow delete: if isAdmin() || isTeacherOwnTest(resource.data);
